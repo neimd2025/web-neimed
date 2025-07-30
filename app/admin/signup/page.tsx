@@ -2,65 +2,61 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useAdminStore } from "@/stores/admin-store"
+import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/stores/auth-store"
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useForm } from 'react-hook-form'
 import { toast } from "sonner"
+import { z } from 'zod'
+
+// Zod 스키마 정의
+const adminSignupSchema = z.object({
+  name: z.string().min(2, '이름은 2자 이상이어야 합니다').max(50, '이름은 50자 이하여야 합니다'),
+  email: z.string().email('올바른 이메일 형식을 입력해주세요'),
+  password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "비밀번호가 일치하지 않습니다",
+  path: ["confirmPassword"],
+})
+
+type AdminSignupFormData = z.infer<typeof adminSignupSchema>
 
 export default function AdminSignupPage() {
   const router = useRouter()
   const { signUpWithEmail } = useAuthStore()
-  const { adminUser, loading } = useAdminStore()
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showVerification, setShowVerification] = useState(false)
-  const [verificationCode, setVerificationCode] = useState("")
+  const [verificationCode, setVerificationCode] = useState('')
   const [signupData, setSignupData] = useState<any>(null)
 
-  // 이미 관리자로 로그인된 경우 대시보드로 리다이렉트
-  if (adminUser && !loading) {
-    router.push('/admin/dashboard')
-    return null
-  }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<AdminSignupFormData>({
+    resolver: zodResolver(adminSignupSchema)
+  })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: AdminSignupFormData) => {
     setIsSubmitting(true)
 
-    // 비밀번호 확인
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('비밀번호가 일치하지 않습니다.')
-      setIsSubmitting(false)
-      return
-    }
-
-    // 비밀번호 길이 확인
-    if (formData.password.length < 6) {
-      toast.error('비밀번호는 최소 6자 이상이어야 합니다.')
-      setIsSubmitting(false)
-      return
-    }
-
     try {
-      const { data, error } = await signUpWithEmail(formData.email, formData.password, formData.name, true)
+      const { data: result, error } = await signUpWithEmail(data.email, data.password, data.name, true)
 
       if (error) {
         toast.error(error.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
         return
       }
 
-      if (data?.user) {
-        setSignupData(data)
+      if (result?.user) {
+        setSignupData(result)
         setShowVerification(true)
         toast.success('이메일로 인증 코드를 발송했습니다. 이메일을 확인해주세요.')
       }
@@ -104,141 +100,130 @@ export default function AdminSignupPage() {
           <p className="mt-2 text-center text-sm text-gray-600">
             관리자 계정을 생성하세요
           </p>
+          <p className="mt-1 text-center text-xs text-gray-500">
+            관리자 권한은 자동으로 부여됩니다
+          </p>
         </div>
 
         {!showVerification ? (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                이름
-              </label>
-              <div className="mt-1 relative">
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="pl-10"
-                  placeholder="관리자 이름"
-                />
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  이름
+                </Label>
+                <div className="mt-1 relative">
+                  <Input
+                    {...register('name')}
+                    type="text"
+                    autoComplete="name"
+                    placeholder="관리자 이름"
+                    className={`pl-10 ${errors.name ? 'border-red-500' : ''}`}
+                  />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.name && (
+                  <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  이메일
+                </Label>
+                <div className="mt-1 relative">
+                  <Input
+                    {...register('email')}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="admin@named.com"
+                    className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
+                  />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  비밀번호
+                </Label>
+                <div className="mt-1 relative">
+                  <Input
+                    {...register('password')}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="비밀번호를 입력하세요"
+                    className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
+                  />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                  비밀번호 확인
+                </Label>
+                <div className="mt-1 relative">
+                  <Input
+                    {...register('confirmPassword')}
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="비밀번호를 다시 입력하세요"
+                    className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                  />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                )}
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                이메일
-              </label>
-              <div className="mt-1 relative">
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="pl-10"
-                  placeholder="admin@named.com"
-                />
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              </div>
+              <Button
+                type="submit"
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '회원가입 중...' : '관리자 회원가입'}
+              </Button>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                비밀번호
-              </label>
-              <div className="mt-1 relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="pl-10 pr-10"
-                  placeholder="••••••••"
-                />
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-600">
+                이미 관리자 계정이 있으신가요?{' '}
+                <Link href="/admin/login" className="font-medium text-purple-600 hover:text-purple-500">
+                  관리자 로그인
+                </Link>
+              </p>
             </div>
-
+          </form>
+        ) : (
+          <form className="mt-8 space-y-6" onSubmit={handleVerification}>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                비밀번호 확인
-              </label>
-              <div className="mt-1 relative">
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="pl-10 pr-10"
-                  placeholder="••••••••"
-                />
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <Button
-              type="submit"
-              disabled={isSubmitting || loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3"
-            >
-              {isSubmitting ? "회원가입 중..." : "관리자 회원가입"}
-            </Button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              이미 계정이 있으신가요?{" "}
-              <Link href="/admin/login" className="text-purple-600 hover:text-purple-500 font-medium">
-                로그인하기
-              </Link>
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 mb-2">관리자 계정 안내</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• 관리자 계정은 이벤트 관리, 알림 전송 등이 가능합니다</li>
-              <li>• 회원가입 후 이메일 인증이 필요합니다</li>
-              <li>• 관리자 권한은 자동으로 부여됩니다</li>
-            </ul>
-          </div>
-        </form>
-      ) : (
-        <form className="mt-8 space-y-6" onSubmit={handleVerification}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
+              <Label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
                 인증 코드
-              </label>
+              </Label>
               <div className="mt-1 relative">
                 <Input
                   id="verificationCode"
@@ -250,41 +235,34 @@ export default function AdminSignupPage() {
                   className="pl-10"
                   placeholder="이메일로 받은 6자리 코드"
                 />
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {signupData?.user?.email}로 전송된 인증 코드를 입력해주세요
+              </p>
             </div>
-          </div>
 
-          <div>
-            <Button
-              type="submit"
-              disabled={isSubmitting || loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3"
-            >
-              {isSubmitting ? "인증 중..." : "인증 완료"}
-            </Button>
-          </div>
+            <div>
+              <Button
+                type="submit"
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '인증 중...' : '인증 완료'}
+              </Button>
+            </div>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setShowVerification(false)}
-              className="text-sm text-gray-600 hover:text-gray-800"
-            >
-              ← 회원가입으로 돌아가기
-            </button>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-900 mb-2">인증 코드 안내</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• 이메일로 발송된 6자리 인증 코드를 입력해주세요</li>
-              <li>• 인증 코드는 10분 후 만료됩니다</li>
-              <li>• 이메일이 보이지 않으면 스팸함을 확인해주세요</li>
-            </ul>
-          </div>
-        </form>
-      )}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowVerification(false)}
+                className="text-sm text-purple-600 hover:text-purple-500"
+              >
+                ← 회원가입으로 돌아가기
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

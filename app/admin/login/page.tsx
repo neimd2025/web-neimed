@@ -2,24 +2,40 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useAdminStore } from "@/stores/admin-store"
 import { useAuthStore } from "@/stores/auth-store"
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useForm } from 'react-hook-form'
 import { toast } from "sonner"
+import { z } from 'zod'
+
+// Zod 스키마 정의
+const adminLoginSchema = z.object({
+  email: z.string().email('올바른 이메일 형식을 입력해주세요'),
+  password: z.string().min(1, '비밀번호를 입력해주세요')
+})
+
+type AdminLoginFormData = z.infer<typeof adminLoginSchema>
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const { signInWithEmail } = useAuthStore()
   const { adminUser, loading } = useAdminStore()
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  })
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<AdminLoginFormData>({
+    resolver: zodResolver(adminLoginSchema)
+  })
 
   // 이미 관리자로 로그인된 경우 대시보드로 리다이렉트
   if (adminUser && !loading) {
@@ -27,19 +43,18 @@ export default function AdminLoginPage() {
     return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: AdminLoginFormData) => {
     setIsSubmitting(true)
 
     try {
-      const { data, error } = await signInWithEmail(formData.email, formData.password)
+      const { data: result, error } = await signInWithEmail(data.email, data.password)
 
       if (error) {
         toast.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
         return
       }
 
-      if (data?.user) {
+      if (result?.user) {
         // 관리자 권한 확인은 useAdminStore에서 자동으로 처리됨
         toast.success('로그인되었습니다.')
         router.push('/admin/dashboard')
@@ -67,43 +82,38 @@ export default function AdminLoginPage() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 이메일
-              </label>
+              </Label>
               <div className="mt-1 relative">
                 <Input
-                  id="email"
-                  name="email"
+                  {...register('email')}
                   type="email"
                   autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="pl-10"
                   placeholder="admin@named.com"
+                  className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
                 />
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+              )}
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 비밀번호
-              </label>
+              </Label>
               <div className="mt-1 relative">
                 <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="pl-10 pr-10"
-                  placeholder="••••••••"
+                  placeholder="비밀번호를 입력하세요"
+                  className={`pl-10 pr-10 ${errors.password ? 'border-red-500' : ''}`}
                 />
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <button
@@ -114,26 +124,28 @@ export default function AdminLoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+              )}
             </div>
           </div>
 
           <div>
             <Button
               type="submit"
-              disabled={isSubmitting || loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3"
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              disabled={isSubmitting}
             >
-              {isSubmitting ? "로그인 중..." : "로그인"}
+              {isSubmitting ? '로그인 중...' : '로그인'}
             </Button>
           </div>
 
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              관리자 계정이 필요하시면{" "}
-              <Link href="/admin/signup" className="text-purple-600 hover:text-purple-500 font-medium">
-                회원가입
+              관리자 계정이 없으신가요?{' '}
+              <Link href="/admin/signup" className="font-medium text-purple-600 hover:text-purple-500">
+                관리자 회원가입
               </Link>
-              하거나 개발팀에 문의하세요.
             </p>
           </div>
         </form>
