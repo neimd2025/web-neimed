@@ -3,6 +3,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
+  // Hydration 경고 억제
+  reactStrictMode: false,
   images: {
     domains: ['kyibcvcwwvkldlasxyjn.supabase.co'],
     formats: ['image/webp', 'image/avif'],

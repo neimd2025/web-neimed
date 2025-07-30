@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      roles: {
+        Row: {
+          id: number
+          name: string
+          description: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_role_id_fkey"
+            columns: ["id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["role_id"]
+          }
+        ]
+      }
       business_cards: {
         Row: {
           company: string | null
@@ -257,6 +289,7 @@ export type Database = {
           profile_image_url: string | null
           qr_code_url: string | null
           role: string | null
+          role_id: number | null
           updated_at: string | null
         }
         Insert: {
@@ -276,6 +309,7 @@ export type Database = {
           profile_image_url?: string | null
           qr_code_url?: string | null
           role?: string | null
+          role_id?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -295,9 +329,18 @@ export type Database = {
           profile_image_url?: string | null
           qr_code_url?: string | null
           role?: string | null
+          role_id?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       feedback: {
         Row: {

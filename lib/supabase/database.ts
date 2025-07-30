@@ -78,9 +78,23 @@ export const userProfileAPI = {
   async updateUserProfile(userId: string, updates: UserProfileUpdate): Promise<UserProfile | null> {
     const supabase = createClient()
 
+    console.log('프로필 업데이트 시작:', { userId, updates })
+
+    // birth_date 필터링
+    const cleanedUpdates = { ...updates }
+    if (cleanedUpdates.birth_date) {
+      const date = new Date(cleanedUpdates.birth_date)
+      if (isNaN(date.getTime()) || cleanedUpdates.birth_date === '123123123') {
+        console.log('잘못된 birth_date 값 제거:', cleanedUpdates.birth_date)
+        delete cleanedUpdates.birth_date
+      }
+    }
+
+    console.log('정리된 업데이트 데이터:', cleanedUpdates)
+
     const { data, error } = await supabase
       .from('user_profiles')
-      .update(updates)
+      .update(cleanedUpdates)
       .eq('id', userId)
       .select()
       .single()
@@ -90,6 +104,7 @@ export const userProfileAPI = {
       return null
     }
 
+    console.log('프로필 업데이트 성공:', data)
     return data
   },
 

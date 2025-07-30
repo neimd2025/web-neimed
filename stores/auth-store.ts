@@ -2,6 +2,27 @@ import { createClient } from '@/utils/supabase/client'
 import { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 
+// 권한 확인 함수
+const checkUserRole = async (userId: string) => {
+  const supabase = createClient()
+  try {
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('role, role_id')
+      .eq('id', userId)
+      .single()
+
+    if (!error && profile) {
+      const isAdmin = profile.role === 'admin' || profile.role_id === 2
+      console.log(`👤 사용자 권한 확인: ${profile.role} (ID: ${profile.role_id}) - ${isAdmin ? '관리자' : '일반사용자'}`)
+    } else {
+      console.log('❌ 사용자 권한 확인 실패:', error)
+    }
+  } catch (error) {
+    console.error('권한 확인 중 오류:', error)
+  }
+}
+
 interface AuthState {
   user: User | null
   session: Session | null
@@ -164,32 +185,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // 회원가입 성공 시 자동으로 프로필과 비즈니스 카드 생성
     if (!error && data.user) {
       try {
-        // 서버 사이드에서 프로필 생성을 처리하도록 Edge Function 호출
-        const response = await fetch('/api/auth/create-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: data.user.id,
-            email: email,
-            name: name,
-            isAdmin: isAdmin
-          })
-        })
+        // 관리자 이메일 목록
+        const adminEmails = [
+          'admin@named.com',
+          'simjaehyeong@gmail.com',
+          'test@admin.com'
+        ]
 
-        if (response.ok) {
-          const result = await response.json()
-          console.log(`✅ 사용자 프로필과 비즈니스 카드가 자동으로 생성되었습니다. (Role: ${result.role})`)
+        const userRole = isAdmin || adminEmails.includes(email.toLowerCase()) ? 'admin' : 'user'
+        const roleId = userRole === 'admin' ? 2 : 1 // admin: 2, user: 1
+
+        // 클라이언트에서 직접 프로필 생성
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: data.user.id,
+            full_name: name || '',
+            email: email,
+            contact: '',
+            company: '',
+            role: userRole, // 기존 호환성을 위해 유지
+            role_id: roleId, // 새로운 참조 관계
+            introduction: '',
+            mbti: '',
+            keywords: [],
+            profile_image_url: null,
+            qr_code_url: null
+          })
+
+        if (profileError) {
+          console.error('⚠️ 프로필 생성 실패:', profileError)
         } else {
-          console.error('⚠️ 프로필 생성 실패:', response.statusText)
-          // 프로필 생성 실패해도 회원가입은 성공했으므로 사용자에게 알림
-          console.warn('회원가입은 성공했지만 프로필 생성에 실패했습니다. 관리자에게 문의해주세요.')
+          console.log(`✅ 사용자 프로필이 자동으로 생성되었습니다. (Role: ${userRole})`)
+        }
+
+        // 비즈니스 카드 생성
+        const { error: cardError } = await supabase
+          .from('business_cards')
+          .insert({
+            user_id: data.user.id,
+            full_name: name || '',
+            email: email,
+            contact: '',
+            company: '',
+            role: '',
+            introduction: '',
+            profile_image_url: null,
+            qr_code_url: null,
+            is_public: true
+          })
+
+        if (cardError) {
+          console.error('⚠️ 비즈니스 카드 생성 실패:', cardError)
+        } else {
+          console.log('✅ 비즈니스 카드가 자동으로 생성되었습니다.')
         }
       } catch (profileError) {
-        console.error('⚠️ 프로필 생성 중 오류:', profileError)
-        // 네트워크 오류 등으로 인한 실패
-        console.warn('회원가입은 성공했지만 프로필 생성 중 네트워크 오류가 발생했습니다.')
+        console.error('⚠️ 프로필/카드 생성 중 오류:', profileError)
       }
     }
 
@@ -229,6 +281,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (session) {
         set({ user: session.user, session })
+        // 권한 확인 로그 추가
+        await checkUserRole(session.user.id)
       }
 
       // 인증 상태 변경 구독
@@ -238,6 +292,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
           if (session) {
             set({ user: session.user, session })
+            // 권한 확인 로그 추가
+            await checkUserRole(session.user.id)
           } else {
             set({ user: null, session: null })
           }

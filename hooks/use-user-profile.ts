@@ -70,7 +70,7 @@ export const useUserProfile = () => {
     }
   }
 
-  // 프로필 업데이트
+    // 프로필 업데이트
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user?.id) {
       throw new Error('사용자가 로그인되지 않았습니다.')
@@ -80,28 +80,12 @@ export const useUserProfile = () => {
       setLoading(true)
       setError(null)
 
-      // 서버 사이드 API 호출
-      const response = await fetch('/api/auth/update-profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          updates: updates
-        })
-      })
+      // 클라이언트에서 직접 업데이트
+      const updatedProfile = await userProfileAPI.updateUserProfile(user.id, updates)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || '프로필 업데이트에 실패했습니다.')
-      }
-
-      const result = await response.json()
-
-      if (result.success && result.data) {
-        setProfile(result.data)
-        return result.data
+      if (updatedProfile) {
+        setProfile(updatedProfile)
+        return updatedProfile
       } else {
         throw new Error('프로필 업데이트에 실패했습니다.')
       }

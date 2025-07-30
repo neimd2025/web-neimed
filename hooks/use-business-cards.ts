@@ -109,30 +109,14 @@ export const useBusinessCards = () => {
       setLoading(true)
       setError(null)
 
-      // 서버 사이드 API 호출
-      const response = await fetch('/api/auth/update-business-card', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cardId: cardId,
-          updates: updates
-        })
-      })
+      // 클라이언트에서 직접 업데이트
+      const updatedCard = await businessCardAPI.updateBusinessCard(cardId, updates)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || '명함 업데이트에 실패했습니다.')
-      }
-
-      const result = await response.json()
-
-      if (result.success && result.data) {
+      if (updatedCard) {
         if (userCard?.id === cardId) {
-          setUserCard(result.data)
+          setUserCard(updatedCard)
         }
-        return result.data
+        return updatedCard
       } else {
         throw new Error('명함 업데이트에 실패했습니다.')
       }

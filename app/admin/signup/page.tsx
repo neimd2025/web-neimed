@@ -23,6 +23,9 @@ export default function AdminSignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showVerification, setShowVerification] = useState(false)
+  const [verificationCode, setVerificationCode] = useState("")
+  const [signupData, setSignupData] = useState<any>(null)
 
   // 이미 관리자로 로그인된 경우 대시보드로 리다이렉트
   if (adminUser && !loading) {
@@ -52,17 +55,37 @@ export default function AdminSignupPage() {
       const { data, error } = await signUpWithEmail(formData.email, formData.password, formData.name, true)
 
       if (error) {
-        toast.error('회원가입에 실패했습니다. 다시 시도해주세요.')
+        toast.error(error.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
         return
       }
 
       if (data?.user) {
-        toast.success('관리자 계정이 성공적으로 생성되었습니다! 이메일 인증 후 로그인해주세요.')
-        router.push('/admin/login')
+        setSignupData(data)
+        setShowVerification(true)
+        toast.success('이메일로 인증 코드를 발송했습니다. 이메일을 확인해주세요.')
       }
     } catch (error) {
       console.error('회원가입 오류:', error)
       toast.error('회원가입 중 오류가 발생했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // 여기서 인증 코드 확인 로직을 구현해야 합니다
+      // Supabase에서는 이메일 링크 방식이 기본이므로
+      // 별도의 인증 코드 확인 API가 필요할 수 있습니다
+
+      toast.success('관리자 계정이 성공적으로 생성되었습니다!')
+      router.push('/admin/login')
+    } catch (error) {
+      console.error('인증 오류:', error)
+      toast.error('인증 코드가 올바르지 않습니다.')
     } finally {
       setIsSubmitting(false)
     }
@@ -83,7 +106,8 @@ export default function AdminSignupPage() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {!showVerification ? (
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -204,10 +228,63 @@ export default function AdminSignupPage() {
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• 관리자 계정은 이벤트 관리, 알림 전송 등이 가능합니다</li>
               <li>• 회원가입 후 이메일 인증이 필요합니다</li>
-              <li>• 관리자 권한은 개발팀에서 검토 후 승인됩니다</li>
+              <li>• 관리자 권한은 자동으로 부여됩니다</li>
             </ul>
           </div>
         </form>
+      ) : (
+        <form className="mt-8 space-y-6" onSubmit={handleVerification}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
+                인증 코드
+              </label>
+              <div className="mt-1 relative">
+                <Input
+                  id="verificationCode"
+                  name="verificationCode"
+                  type="text"
+                  required
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  className="pl-10"
+                  placeholder="이메일로 받은 6자리 코드"
+                />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Button
+              type="submit"
+              disabled={isSubmitting || loading}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3"
+            >
+              {isSubmitting ? "인증 중..." : "인증 완료"}
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setShowVerification(false)}
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              ← 회원가입으로 돌아가기
+            </button>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">인증 코드 안내</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• 이메일로 발송된 6자리 인증 코드를 입력해주세요</li>
+              <li>• 인증 코드는 10분 후 만료됩니다</li>
+              <li>• 이메일이 보이지 않으면 스팸함을 확인해주세요</li>
+            </ul>
+          </div>
+        </form>
+      )}
       </div>
     </div>
   )

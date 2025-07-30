@@ -5,12 +5,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useAdminStore } from "@/stores/admin-store"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { toast } from "sonner"
 
 export default function NewEventPage() {
   const router = useRouter()
+  const { adminUser } = useAdminStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -22,6 +26,12 @@ export default function NewEventPage() {
     maxParticipants: "",
     eventCode: ""
   })
+
+  // 관리자 권한 확인
+  if (!adminUser) {
+    router.push('/admin/login')
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -169,10 +179,40 @@ export default function NewEventPage() {
                   return
                 }
 
-                // 실제로는 Supabase에 이벤트를 생성해야 함
-                await new Promise(resolve => setTimeout(resolve, 1000)) // 시뮬레이션
+                const supabase = createClient()
 
-                console.log('이벤트 생성:', formData)
+                // 이벤트 코드 자동 생성 (입력되지 않은 경우)
+                let eventCode = formData.eventCode
+                if (!eventCode) {
+                  eventCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+                }
+
+                // 이벤트 생성
+                const { data: event, error: eventError } = await supabase
+                  .from('events')
+                  .insert({
+                    title: formData.title,
+                    description: formData.description,
+                    start_date: formData.startDate,
+                    end_date: formData.endDate,
+                    location: formData.location,
+                    max_participants: parseInt(formData.maxParticipants),
+                    event_code: eventCode,
+                    created_by: adminUser.id, // 관리자 ID 설정
+                    status: 'upcoming',
+                    current_participants: 0
+                  })
+                  .select()
+                  .single()
+
+                if (eventError) {
+                  console.error('이벤트 생성 오류:', eventError)
+                  setError("이벤트 생성 중 오류가 발생했습니다.")
+                  return
+                }
+
+                console.log('이벤트 생성 성공:', event)
+                toast.success('이벤트가 성공적으로 생성되었습니다!')
 
                 // 성공 시 이벤트 목록으로 이동
                 router.push('/admin/events')

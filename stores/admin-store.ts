@@ -37,16 +37,18 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user) {
-        // 사용자의 role 확인
+        // 사용자의 role 확인 (role_id 사용)
         const { data: profile, error } = await supabase
           .from('user_profiles')
-          .select('role')
+          .select('role, role_id')
           .eq('id', session.user.id)
           .single()
 
-        if (!error && profile && profile.role === 'admin') {
+        if (!error && profile && (profile.role === 'admin' || profile.role_id === 2)) {
+          console.log('🔐 관리자 권한 확인됨:', session.user.email, 'Role:', profile.role, 'Role ID:', profile.role_id)
           set({ adminUser: session.user })
         } else {
+          console.log('👤 일반 사용자:', session.user.email, 'Role:', profile?.role || 'undefined', 'Role ID:', profile?.role_id)
           set({ adminUser: null })
         }
       } else {
@@ -59,16 +61,18 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           console.log('🔐 Admin auth state changed:', event, session?.user?.email)
 
           if (session?.user) {
-            // 사용자의 role 확인
+            // 사용자의 role 확인 (role_id 사용)
             const { data: profile, error } = await supabase
               .from('user_profiles')
-              .select('role')
+              .select('role, role_id')
               .eq('id', session.user.id)
               .single()
 
-            if (!error && profile && profile.role === 'admin') {
+            if (!error && profile && (profile.role === 'admin' || profile.role_id === 2)) {
+              console.log('🔐 관리자 권한 확인됨 (상태 변경):', session.user.email, 'Role:', profile.role, 'Role ID:', profile.role_id)
               set({ adminUser: session.user })
             } else {
+              console.log('👤 일반 사용자 (상태 변경):', session.user.email, 'Role:', profile?.role || 'undefined', 'Role ID:', profile?.role_id)
               set({ adminUser: null })
             }
           } else {

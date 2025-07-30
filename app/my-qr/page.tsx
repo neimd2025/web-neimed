@@ -3,6 +3,8 @@
 import MobileHeader from "@/components/mobile-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useBusinessCards } from "@/hooks/use-business-cards"
+import { useUserProfile } from "@/hooks/use-user-profile"
 import { Download, MapPin, Share } from "lucide-react"
 import { useRouter } from "next/navigation"
 import QRCode from "qrcode"
@@ -10,12 +12,25 @@ import { useEffect, useState } from "react"
 
 export default function MyQRPage() {
   const router = useRouter()
+  const { userCard, loading: cardLoading } = useBusinessCards()
+  const { profile, loading: profileLoading } = useUserProfile()
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>("")
+  const [qrUrl, setQrUrl] = useState<string>("")
 
   useEffect(() => {
     const generateQRCode = async () => {
+      if (!userCard?.id) {
+        console.log("비즈니스 카드가 없습니다.")
+        return
+      }
+
       try {
-        const url = await QRCode.toDataURL("https://neimd.link/1s2v", {
+        // 실제 사이트 URL을 사용하여 QR 코드 생성
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000")
+        const qrCodeUrl = `${siteUrl}/business-card/${userCard.id}`
+        setQrUrl(qrCodeUrl)
+
+        const url = await QRCode.toDataURL(qrCodeUrl, {
           width: 240,
           margin: 2,
           color: {
@@ -28,8 +43,11 @@ export default function MyQRPage() {
         console.error("QR Code generation failed:", err)
       }
     }
-    generateQRCode()
-  }, [])
+
+    if (!cardLoading && userCard) {
+      generateQRCode()
+    }
+  }, [userCard, cardLoading])
 
   return (
     <div className="min-h-screen bg-white">
@@ -40,16 +58,22 @@ export default function MyQRPage() {
         <Card className="border-0 shadow-lg">
           <CardContent className="p-8 text-center space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">허수정</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {profile?.full_name || userCard?.full_name || "사용자"}
+              </h2>
               <p className="text-gray-500">QR코드를 스캔하여 명함을 확인할 수 있어요</p>
             </div>
 
             {/* QR Code */}
             <div className="flex justify-center">
               <div className="w-64 h-64 bg-white border-2 border-gray-200 rounded-2xl p-4 flex items-center justify-center">
-                {qrCodeDataURL ? (
+                {cardLoading || profileLoading ? (
+                  <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-500">로딩 중...</span>
+                  </div>
+                ) : qrCodeDataURL ? (
                   <img
-                    src={qrCodeDataURL || "/placeholder.svg"}
+                    src={qrCodeDataURL}
                     alt="QR Code"
                     className="w-full h-full object-contain"
                   />
@@ -61,15 +85,42 @@ export default function MyQRPage() {
               </div>
             </div>
 
-            <p className="text-sm text-gray-500">neimd.link/1s2v</p>
+            <p className="text-sm text-gray-500">{qrUrl || "URL 로딩 중..."}</p>
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-4">
-              <Button className="bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl">
+              <Button
+                className="bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl"
+                onClick={() => {
+                  if (qrUrl && navigator.share) {
+                    navigator.share({
+                      title: `${profile?.full_name || userCard?.full_name || "사용자"}의 명함`,
+                      text: "QR 코드를 스캔하여 명함을 확인하세요!",
+                      url: qrUrl
+                    })
+                  } else if (qrUrl) {
+                    navigator.clipboard.writeText(qrUrl)
+                    alert("URL이 클립보드에 복사되었습니다!")
+                  }
+                }}
+                disabled={!qrUrl}
+              >
                 <Share className="h-5 w-5 mr-2" />
                 공유
               </Button>
-              <Button variant="outline" className="border-2 border-gray-200 py-3 rounded-xl bg-transparent">
+              <Button
+                variant="outline"
+                className="border-2 border-gray-200 py-3 rounded-xl bg-transparent"
+                onClick={() => {
+                  if (qrCodeDataURL) {
+                    const link = document.createElement('a')
+                    link.download = 'qr-code.png'
+                    link.href = qrCodeDataURL
+                    link.click()
+                  }
+                }}
+                disabled={!qrCodeDataURL}
+              >
                 <Download className="h-5 w-5 mr-2" />
                 저장
               </Button>

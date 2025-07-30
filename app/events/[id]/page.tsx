@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
+import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, Clock, MapPin, User, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -51,14 +52,71 @@ export default function EventDetailPage() {
     }
   }
 
-  const handleJoinEvent = () => {
+  const handleJoinEvent = async () => {
     if (!user) {
       toast.error('로그인이 필요합니다.')
       return
     }
 
-    toast.success('이벤트에 참가했습니다!')
-    // 실제로는 event_participants 테이블에 참가 정보를 추가해야 함
+    if (!event) {
+      toast.error('이벤트 정보를 불러올 수 없습니다.')
+      return
+    }
+
+    try {
+      const supabase = createClient()
+
+      // 이미 참가했는지 확인
+      const { data: existingParticipant } = await supabase
+        .from('event_participants')
+        .select('*')
+        .eq('event_id', event.id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingParticipant) {
+        toast.error('이미 참가한 이벤트입니다.')
+        return
+      }
+
+      // 이벤트 참가 정보 추가
+      const { error: joinError } = await supabase
+        .from('event_participants')
+        .insert({
+          event_id: event.id,
+          user_id: user.id,
+          status: 'confirmed',
+          joined_at: new Date().toISOString()
+        })
+
+      if (joinError) {
+        console.error('이벤트 참가 오류:', joinError)
+        toast.error('이벤트 참가에 실패했습니다.')
+        return
+      }
+
+      // 이벤트 참가자 수 업데이트
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({
+          current_participants: (event.current_participants || 0) + 1
+        })
+        .eq('id', event.id)
+
+      if (updateError) {
+        console.error('참가자 수 업데이트 오류:', updateError)
+      }
+
+      toast.success('이벤트에 참가했습니다!')
+
+      // 이벤트 정보 새로고침
+      const updatedEvent = await loadEvent(event.id)
+      setEvent(updatedEvent)
+
+    } catch (error) {
+      console.error('이벤트 참가 중 오류:', error)
+      toast.error('이벤트 참가에 실패했습니다.')
+    }
   }
 
   if (loading) {

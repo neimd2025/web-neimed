@@ -3,15 +3,26 @@
 import { Bell, Bookmark, Home, User } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 
 export default function MobileBottomNav() {
   const pathname = usePathname()
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   // 온보딩, 웰컴, 로그인, 회원가입, 스플래시 페이지와 관리자 페이지에서는 하단 네비게이션 숨김
   const hideBottomNav =
     ["/", "/onboarding", "/welcome", "/login", "/signup"].includes(pathname) ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/profile/edit")
+
+  // 서버사이드 렌더링 중에는 아무것도 렌더링하지 않음
+  if (!isClient) {
+    return null
+  }
 
   if (hideBottomNav) {
     return null

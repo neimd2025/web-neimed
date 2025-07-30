@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useBusinessCards } from '@/hooks/use-business-cards'
 import { useEvents } from '@/hooks/use-events'
 import { useUserProfile } from '@/hooks/use-user-profile'
-import { ArrowRight, Bell, Calendar, Camera, MessageCircle, QrCode, Star, User, Wifi } from 'lucide-react'
+import { ArrowRight, Bell, Calendar, Camera, MessageCircle, QrCode, Star, User } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -22,14 +22,6 @@ export default function HomePage() {
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // 실시간 연결 상태 표시 (임시로 항상 연결됨으로 표시)
-  const getConnectionStatus = () => {
-    return { connected: true, icon: Wifi, text: "실시간 연결됨" }
-  }
-
-  const connectionStatus = getConnectionStatus()
-  const ConnectionIcon = connectionStatus.icon
 
   // 인증 로딩 중이거나 마운트되지 않은 경우
   if (!mounted || authLoading) {
@@ -65,7 +57,6 @@ export default function HomePage() {
             <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">{getInitial()}</span>
             </div>
-
             {/* 환영 메시지 */}
             <div>
               <h1 className="text-xl font-bold text-gray-900">
@@ -75,14 +66,6 @@ export default function HomePage() {
                 오늘도 좋은 만남이 있기를 🤝
               </p>
             </div>
-          </div>
-
-          {/* 실시간 상태 표시 */}
-          <div className="flex items-center gap-2 text-xs">
-            <ConnectionIcon className={`w-3 h-3 ${connectionStatus.connected ? 'text-green-500' : 'text-gray-400'}`} />
-            <span className={connectionStatus.connected ? 'text-green-600' : 'text-gray-500'}>
-              {connectionStatus.text}
-            </span>
           </div>
         </div>
 

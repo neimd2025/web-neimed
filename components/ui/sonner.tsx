@@ -2,11 +2,22 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner"
+import { useEffect, useState } from "react"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // 서버사이드 렌더링 중에는 아무것도 렌더링하지 않음
+  if (!isClient) {
+    return null
+  }
 
   return (
     <Sonner
