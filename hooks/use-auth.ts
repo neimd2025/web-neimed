@@ -1,34 +1,19 @@
 "use client"
 
 import { useAuthStore } from '@/stores/auth-store'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export const useAuth = () => {
-  const {
-    user,
-    session,
-    loading,
-    initialized,
-    signInWithEmail,
-    signUpWithEmail,
-    signInWithOAuth,
-    signOut,
-    initializeAuth
-  } = useAuthStore()
+  const store = useAuthStore()
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    if (!initialized) {
-      initializeAuth()
+    // 컴포넌트 마운트시 한 번만 실행
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      store.initializeAuth()
     }
-  }, [initialized, initializeAuth])
+  }, [])
 
-  return {
-    user,
-    session,
-    loading,
-    signInWithEmail,
-    signUpWithEmail,
-    signInWithOAuth,
-    signOut,
-  }
+  return store
 }

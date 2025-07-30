@@ -51,7 +51,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* 헤더 섹션 */}
       <div className="bg-white border-b border-gray-200 px-5 py-10">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-4">
           {/* 프로필 아바타 */}
           <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-lg">{getInitial()}</span>
@@ -96,7 +96,7 @@ export default function HomePage() {
           <Card className="flex-1 bg-white border border-gray-200 shadow-sm">
             <CardContent className="p-4 flex justify-between items-center">
               <div>
-                <p className="text-2xl font-bold text-gray-900">167</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
                 <p className="text-sm text-gray-600">프로필 조회수</p>
               </div>
               <Star className="w-6 h-6 text-purple-600" />
@@ -115,7 +115,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-
+~
         {/* 내 명함 섹션 - Figma 디자인에 맞춰 수정 */}
         <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-5">
@@ -127,18 +127,19 @@ export default function HomePage() {
                 </Button>
               </Link>
             </div>
-
-            <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <span className="text-gray-600 font-bold text-lg">{getInitial()}</span>
+            <Link href="/my-namecard">
+              <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-gray-600 font-bold text-lg">{getInitial()}</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{getDisplayName()}</h3>
+                  <p className="text-sm text-gray-600">
+                    {cardsLoading ? '로딩 중...' : `${userCard?.role || '직책'} / ${userCard?.company || '회사'}`}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{getDisplayName()}</h3>
-                <p className="text-sm text-gray-600">
-                  {cardsLoading ? '로딩 중...' : `${userCard?.role || '직책'} / ${userCard?.company || '회사'}`}
-                </p>
-              </div>
-            </div>
+            </Link>
           </CardContent>
         </Card>
 
@@ -205,24 +206,8 @@ export default function HomePage() {
                         </p>
                       </div>
 
-                      {/* 피드백 입력 영역 */}
-                      <div className="border border-gray-200 rounded-lg p-3 mb-4">
-                        <input
-                          type="text"
-                          placeholder="이벤트에 대한 피드백을 작성해주세요..."
-                          className="w-full text-sm text-gray-600 bg-transparent outline-none"
-                        />
-                      </div>
-
-                      {/* 버튼들 */}
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="outline" size="sm" className="text-gray-900">
-                          취소
-                        </Button>
-                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                          피드백 전송
-                        </Button>
-                      </div>
+                      {/* 피드백 입력 영역 - 실제 피드백 데이터가 있을 때만 표시 */}
+                      {/* 피드백 기능은 실제 데이터베이스 연동 후 구현 예정 */}
                     </div>
                   ))
                 ) : (

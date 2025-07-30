@@ -6,28 +6,67 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
 import { createClient } from '@/utils/supabase/client'
-import { ArrowLeft, Calendar, Clock, MapPin, User, Users } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+
+interface Event {
+  id: string
+  title: string
+  description: string | null
+  start_date: string
+  end_date: string
+  location: string | null
+  status: string | null
+  current_participants: number | null
+  max_participants: number | null
+  event_code: string | null
+  created_at: string | null
+  created_by: string | null
+  updated_at: string | null
+}
+
+interface Participant {
+  id: string
+  user_id: string
+  event_id: string
+  status: string
+  joined_at: string
+  user: {
+    full_name: string
+    email: string
+  }
+}
 
 export default function EventDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
   const { loadEvent } = useEvents()
-  const [event, setEvent] = useState<any>(null)
+  const [event, setEvent] = useState<Event | null>(null)
+  const [participants, setParticipants] = useState<Participant[]>([])
   const [loading, setLoading] = useState(true)
+  const [joining, setJoining] = useState(false)
+  const [isParticipant, setIsParticipant] = useState(false)
 
   useEffect(() => {
-    const fetchEvent = async () => {
+    const fetchEventData = async () => {
       if (!params.id) return
 
       try {
         setLoading(true)
         const eventData = await loadEvent(params.id as string)
         setEvent(eventData)
+
+        // 참가자 목록 로드
+        await loadParticipants(params.id as string)
+
+        // 현재 사용자가 참가자인지 확인
+        if (user) {
+          await checkParticipantStatus(params.id as string)
+        }
       } catch (error) {
         console.error('이벤트 로드 오류:', error)
         toast.error('이벤트를 불러오는데 실패했습니다.')
@@ -36,8 +75,54 @@ export default function EventDetailPage() {
       }
     }
 
-    fetchEvent()
-  }, [params.id, loadEvent])
+    fetchEventData()
+  }, [params.id, loadEvent, user])
+
+  const loadParticipants = async (eventId: string) => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select(`
+          *,
+          user:profiles(full_name, email)
+        `)
+        .eq('event_id', eventId)
+        .order('joined_at', { ascending: false })
+
+      if (error) {
+        console.error('참가자 목록 로드 오류:', error)
+        return
+      }
+
+      setParticipants(data || [])
+    } catch (error) {
+      console.error('참가자 목록 로드 오류:', error)
+    }
+  }
+
+  const checkParticipantStatus = async (eventId: string) => {
+    if (!user) return
+
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('참가자 상태 확인 오류:', error)
+        return
+      }
+
+      setIsParticipant(!!data)
+    } catch (error) {
+      console.error('참가자 상태 확인 오류:', error)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -63,21 +148,14 @@ export default function EventDetailPage() {
       return
     }
 
+    if (isParticipant) {
+      toast.error('이미 참가한 이벤트입니다.')
+      return
+    }
+
+    setJoining(true)
     try {
       const supabase = createClient()
-
-      // 이미 참가했는지 확인
-      const { data: existingParticipant } = await supabase
-        .from('event_participants')
-        .select('*')
-        .eq('event_id', event.id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (existingParticipant) {
-        toast.error('이미 참가한 이벤트입니다.')
-        return
-      }
 
       // 이벤트 참가 정보 추가
       const { error: joinError } = await supabase
@@ -108,29 +186,36 @@ export default function EventDetailPage() {
       }
 
       toast.success('이벤트에 참가했습니다!')
+      setIsParticipant(true)
 
-      // 이벤트 정보 새로고침
+      // 이벤트 정보와 참가자 목록 새로고침
       const updatedEvent = await loadEvent(event.id)
       setEvent(updatedEvent)
+      await loadParticipants(event.id)
 
     } catch (error) {
       console.error('이벤트 참가 중 오류:', error)
       toast.error('이벤트 참가에 실패했습니다.')
+    } finally {
+      setJoining(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">이벤트 정보를 불러오는 중...</p>
+        </div>
       </div>
     )
   }
 
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center px-5">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">이벤트를 찾을 수 없습니다</h2>
           <p className="text-gray-600 mb-4">요청하신 이벤트가 존재하지 않거나 삭제되었습니다.</p>
           <Link href="/events/history">
@@ -142,7 +227,7 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
@@ -155,7 +240,7 @@ export default function EventDetailPage() {
 
       <div className="px-5 py-6 space-y-6">
         {/* 이벤트 정보 */}
-        <Card>
+        <Card className="border-gray-200">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -172,7 +257,13 @@ export default function EventDetailPage() {
                 <Calendar className="w-5 h-5 text-gray-500" />
                 <div>
                   <p className="text-sm text-gray-500">시작일</p>
-                  <p className="font-medium">{new Date(event.start_date).toLocaleDateString()}</p>
+                  <p className="font-medium">
+                    {new Date(event.start_date).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
                 </div>
               </div>
 
@@ -180,7 +271,13 @@ export default function EventDetailPage() {
                 <Clock className="w-5 h-5 text-gray-500" />
                 <div>
                   <p className="text-sm text-gray-500">종료일</p>
-                  <p className="font-medium">{new Date(event.end_date).toLocaleDateString()}</p>
+                  <p className="font-medium">
+                    {new Date(event.end_date).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
                 </div>
               </div>
 
@@ -208,30 +305,66 @@ export default function EventDetailPage() {
         </Card>
 
         {/* 참가자 목록 */}
-        <Card>
+        <Card className="border-gray-200">
           <CardHeader>
             <CardTitle className="text-lg">참가자 목록</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {/* 실제 참가자 데이터가 있으면 여기에 표시 */}
-              <div className="text-center py-8 text-gray-500">
-                <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p>아직 참가자가 없습니다</p>
-              </div>
+              {participants.length > 0 ? (
+                participants.map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="flex items-center justify-between p-3 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {participant.user?.full_name || '알 수 없음'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(participant.joined_at).toLocaleDateString('ko-KR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <span className="text-xs text-green-600">참가</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>아직 참가자가 없습니다</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* 액션 버튼들 */}
         <div className="flex gap-3">
-          <Button
-            className="flex-1 bg-purple-600 hover:bg-purple-700"
-            onClick={handleJoinEvent}
-            disabled={event.status === 'completed'}
-          >
-            {event.status === 'completed' ? '종료된 이벤트' : '이벤트 참가하기'}
-          </Button>
+          {isParticipant ? (
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              disabled
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              참가 완료
+            </Button>
+          ) : (
+            <Button
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              onClick={handleJoinEvent}
+              disabled={joining || event.status === 'completed'}
+            >
+              {joining ? '참가 중...' : event.status === 'completed' ? '종료된 이벤트' : '이벤트 참가하기'}
+            </Button>
+          )}
 
           <Link href="/scan-card" className="flex-1">
             <Button variant="outline" className="w-full">

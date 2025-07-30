@@ -2,10 +2,9 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
-import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react'
+import { ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -14,9 +13,35 @@ import { toast } from 'sonner'
 export default function EventJoinPage() {
   const { user } = useAuth()
   const { findEventByCode, events } = useEvents()
-  const [eventCode, setEventCode] = useState('')
+  const [eventCode, setEventCode] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  const handleCodeChange = (index: number, value: string) => {
+    if (value.length > 1) return // 한 글자만 입력 가능
+
+    const newCode = [...eventCode]
+    newCode[index] = value
+    setEventCode(newCode)
+
+    // 다음 입력 필드로 자동 이동
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`code-${index + 1}`) as HTMLInputElement
+      if (nextInput) {
+        nextInput.focus()
+      }
+    }
+  }
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !eventCode[index] && index > 0) {
+      // 이전 입력 필드로 이동
+      const prevInput = document.getElementById(`code-${index - 1}`) as HTMLInputElement
+      if (prevInput) {
+        prevInput.focus()
+      }
+    }
+  }
 
   const handleJoinEvent = async () => {
     if (!user) {
@@ -24,14 +49,15 @@ export default function EventJoinPage() {
       return
     }
 
-    if (!eventCode.trim()) {
-      toast.error('이벤트 코드를 입력해주세요.')
+    const code = eventCode.join('')
+    if (code.length !== 6) {
+      toast.error('6자리 이벤트 코드를 입력해주세요.')
       return
     }
 
     setLoading(true)
     try {
-      const event = await findEventByCode(eventCode.trim())
+      const event = await findEventByCode(code)
 
       if (!event) {
         toast.error('유효하지 않은 이벤트 코드입니다.')
@@ -52,93 +78,104 @@ export default function EventJoinPage() {
   const recentEvents = events.slice(0, 3)
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
           <Link href="/home">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="p-2">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">행사 참가</h1>
+          <h1 className="text-xl font-bold text-gray-900">행사 참가</h1>
         </div>
       </div>
 
-      <div className="px-5 py-6 space-y-6">
-        {/* 이벤트 코드 입력 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">이벤트 코드 입력</CardTitle>
-            <p className="text-sm text-gray-600">
-              6자리 이벤트 코드를 입력하여 행사에 참가하세요
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-3">
-              <Input
-                placeholder="예: DEMO001"
-                value={eventCode}
-                onChange={(e) => setEventCode(e.target.value)}
-                className="flex-1 text-center text-lg font-mono tracking-wider"
-                maxLength={6}
-              />
-              <Button
-                onClick={handleJoinEvent}
-                disabled={loading || !eventCode.trim()}
-                className="px-6"
-              >
-                {loading ? '참가 중...' : '참가하기'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="px-5 py-6 space-y-8">
+        {/* 캘린더 아이콘 */}
+        <div className="flex justify-center">
+          <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center">
+            <Calendar className="w-8 h-8 text-purple-600" />
+          </div>
+        </div>
 
-        {/* 최근 이벤트 */}
+        {/* 이벤트 코드 입력 */}
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">행사 코드를 입력하세요</h2>
+          <p className="text-base text-gray-500">
+            주최자에게 받은 6자리 코드를 입력해주세요
+          </p>
+        </div>
+
+        {/* 6자리 코드 입력 박스 */}
+        <div className="flex justify-center gap-2.5">
+          {eventCode.map((digit, index) => (
+            <input
+              key={index}
+              id={`code-${index}`}
+              type="text"
+              value={digit}
+              onChange={(e) => handleCodeChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              className="w-12 h-14 text-center text-lg font-mono border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+              maxLength={1}
+              autoComplete="off"
+            />
+          ))}
+        </div>
+
+        {/* 참가하기 버튼 */}
+        <div className="flex justify-center">
+          <Button
+            onClick={handleJoinEvent}
+            disabled={loading || eventCode.join('').length !== 6}
+            className="w-full h-15 bg-purple-400 hover:bg-purple-500 text-white font-semibold text-lg rounded-xl"
+          >
+            {loading ? '참가 중...' : '행사 참가하기'}
+          </Button>
+        </div>
+
+        {/* 최근 참가한 행사 */}
         {recentEvents.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">최근 이벤트</CardTitle>
-              <p className="text-sm text-gray-600">
-                참가 가능한 이벤트 목록입니다
-              </p>
+          <Card className="border border-gray-200 rounded-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold text-gray-900">
+                최근 참가한 행사
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-center justify-between p-4 bg-white rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{event.title}</h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>{new Date(event.start_date).toLocaleDateString()}</span>
-                        </div>
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{event.location}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          <span>{event.current_participants || 0}/{event.max_participants || 0}명</span>
-                        </div>
-                      </div>
+            <CardContent className="space-y-4">
+              {recentEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-4 bg-white rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-700 text-base">
+                      {event.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {new Date(event.start_date).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="px-2 py-1 bg-green-100 rounded-full">
+                      <span className="text-xs font-medium text-green-700">완료</span>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => router.push(`/events/${event.id}`)}
+                      className="text-purple-600 border-purple-200 hover:bg-purple-50"
                     >
                       상세보기
                     </Button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
@@ -146,7 +183,7 @@ export default function EventJoinPage() {
         {/* 이벤트 히스토리 링크 */}
         <div className="text-center">
           <Link href="/events/history">
-            <Button variant="ghost" className="text-purple-600">
+            <Button variant="ghost" className="text-purple-600 hover:text-purple-700">
               참가한 이벤트 히스토리 보기
             </Button>
           </Link>

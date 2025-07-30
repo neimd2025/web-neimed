@@ -218,59 +218,37 @@ export default function PublicBusinessCardPage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{card.full_name}</h2>
               <p className="text-gray-600 text-base mb-4">{card.introduction}</p>
               <div className="space-y-2 text-sm text-gray-500">
-                <p>{card.age}</p>
-                <p>{card.company} / {card.role}</p>
-                <p>MBTI: {card.mbti}</p>
+                {card.age && <p>{card.age}</p>}
+                {(card.company || card.role) && (
+                  <p>{card.company} / {card.role}</p>
+                )}
+                {card.mbti && <p>MBTI: {card.mbti}</p>}
               </div>
             </div>
 
             {/* 태그 섹션들 */}
             <div className="space-y-6">
               {/* 성격 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {card.keywords.map((keyword: string, index: number) => (
-                    <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
-                      {keyword}
-                    </Badge>
-                  ))}
+              {card.keywords && card.keywords.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {card.keywords.map((keyword: string, index: number) => (
+                      <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              {/* 관심사 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">관심사</h3>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {card.interests.map((interest: string, index: number) => (
-                    <Badge
-                      key={index}
-                      variant={index < 3 ? "default" : "outline"}
-                      className={index < 3 ? "bg-purple-600 text-white" : "border-gray-200"}
-                    >
-                      {interest}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* 취미 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">취미</h3>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {card.hobbies.map((hobby: string, index: number) => (
-                    <Badge key={index} variant="outline" className="border-gray-200 px-3 py-1">
-                      {hobby}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              )}
 
               {/* 외부 링크 */}
-              <div className="border border-gray-200 rounded-xl p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">{card.externalLink.name}</h4>
-                <p className="text-gray-500 text-sm">{card.externalLink.url}</p>
-              </div>
+              {card.external_link && (
+                <div className="border border-gray-200 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">외부 링크</h4>
+                  <p className="text-gray-500 text-sm">{card.external_link}</p>
+                </div>
+              )}
 
               {/* 공유 링크 */}
               <div className="text-center">

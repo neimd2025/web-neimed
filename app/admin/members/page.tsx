@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { useAdminStore } from "@/stores/admin-store"
+import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { Eye, Filter, MessageSquare, Search, Users } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -26,7 +26,7 @@ export default function AdminMembersPage() {
   const [activeFilter, setActiveFilter] = useState("전체")
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
-  const { adminUser } = useAdminStore()
+  const { adminUser } = useAuthStore()
   const supabase = createClient()
 
   useEffect(() => {

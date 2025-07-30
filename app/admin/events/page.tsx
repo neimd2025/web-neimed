@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useAdminStore } from "@/stores/admin-store"
+import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Calendar, MapPin, Plus, Search, Trash2, Users } from "lucide-react"
 import Link from "next/link"
@@ -26,7 +26,7 @@ interface Event {
 
 export default function AdminEventsPage() {
   const router = useRouter()
-  const { adminUser } = useAdminStore()
+  const { adminUser } = useAuthStore()
   const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [events, setEvents] = useState<Event[]>([])

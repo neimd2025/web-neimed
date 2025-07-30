@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useAdminStore } from "@/stores/admin-store"
+import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Megaphone, Plus, Search, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -29,7 +29,7 @@ interface Notification {
 
 export default function AdminNotificationsPage() {
   const router = useRouter()
-  const { adminUser } = useAdminStore()
+  const { adminUser } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "draft" | "sent" | "scheduled">("all")
   const [isCreating, setIsCreating] = useState(false)

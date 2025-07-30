@@ -14,12 +14,12 @@ const checkUserRole = async (userId: string) => {
 
     if (!error && profile) {
       const isAdmin = profile.role === 'admin' || profile.role_id === 2
-      console.log(`👤 사용자 권한 확인: ${profile.role} (ID: ${profile.role_id}) - ${isAdmin ? '관리자' : '일반사용자'}`)
+      return { profile, isAdmin }
     } else {
-      console.log('❌ 사용자 권한 확인 실패:', error)
+      return { profile: null, isAdmin: false }
     }
   } catch (error) {
-    console.error('권한 확인 중 오류:', error)
+    return { profile: null, isAdmin: false }
   }
 }
 
@@ -28,12 +28,20 @@ interface AuthState {
   session: Session | null
   loading: boolean
   initialized: boolean
+  adminUser: User | null
+  isAdmin: boolean
+  adminLoading: boolean
+  adminInitialized: boolean
 
   // Actions
   setUser: (user: User | null) => void
   setSession: (session: Session | null) => void
   setLoading: (loading: boolean) => void
   setInitialized: (initialized: boolean) => void
+  setAdminUser: (user: User | null) => void
+  setIsAdmin: (isAdmin: boolean) => void
+  setAdminLoading: (loading: boolean) => void
+  setAdminInitialized: (initialized: boolean) => void
 
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<{ data: any; error: any }>
@@ -48,13 +56,21 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
-  loading: true,
+  loading: true, // 초기 로딩 상태를 true로 설정
   initialized: false,
+  adminUser: null,
+  isAdmin: false,
+  adminLoading: true, // 초기 admin 로딩 상태를 true로 설정
+  adminInitialized: false,
 
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
   setLoading: (loading) => set({ loading }),
   setInitialized: (initialized) => set({ initialized }),
+  setAdminUser: (user) => set({ adminUser: user }),
+  setIsAdmin: (isAdmin) => set({ isAdmin }),
+  setAdminLoading: (loading) => set({ adminLoading: loading }),
+  setAdminInitialized: (initialized) => set({ adminInitialized: initialized }),
 
   signInWithEmail: async (email: string, password: string) => {
     const supabase = createClient()
@@ -110,14 +126,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { data, error: { ...error, message: errorMessage } }
     }
 
-    if (!error && data.user) {
-      set({ user: data.user, session: data.session })
-    }
-
     return { data, error }
   },
 
-  signUpWithEmail: async (email: string, password: string, name?: string, isAdmin: boolean = false) => {
+  signUpWithEmail: async (email: string, password: string, name?: string, isAdmin?: boolean) => {
     const supabase = createClient()
 
     // 이메일 형식 검증
@@ -129,19 +141,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
 
-    // 비밀번호 강도 검증
-    if (password.length < 6) {
+    // 비밀번호 검증
+    if (!password || password.length < 6) {
       return {
         data: null,
         error: { message: '비밀번호는 최소 6자 이상이어야 합니다.' }
-      }
-    }
-
-    // 이름 검증
-    if (!name || name.trim().length < 2) {
-      return {
-        data: null,
-        error: { message: '이름은 2자 이상 입력해주세요.' }
       }
     }
 
@@ -149,14 +153,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       email,
       password,
       options: {
-        data: {
-          name: name,
-          isAdmin: isAdmin
-        }
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       }
     })
 
-    // Supabase 에러 코드별 구체적인 메시지 처리
     if (error) {
       let errorMessage = '회원가입에 실패했습니다. 다시 시도해주세요.'
 
@@ -182,67 +182,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { data, error: { ...error, message: errorMessage } }
     }
 
-    // 회원가입 성공 시 자동으로 프로필과 비즈니스 카드 생성
+    // 회원가입 성공 시 이메일 인증 대기
     if (!error && data.user) {
-      try {
-        // 관리자 이메일 목록
-        const adminEmails = [
-          'admin@named.com',
-          'simjaehyeong@gmail.com',
-          'test@admin.com'
-        ]
-
-        const userRole = isAdmin || adminEmails.includes(email.toLowerCase()) ? 'admin' : 'user'
-        const roleId = userRole === 'admin' ? 2 : 1 // admin: 2, user: 1
-
-        // 클라이언트에서 직접 프로필 생성
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            full_name: name || '',
-            email: email,
-            contact: '',
-            company: '',
-            role: userRole, // 기존 호환성을 위해 유지
-            role_id: roleId, // 새로운 참조 관계
-            introduction: '',
-            mbti: '',
-            keywords: [],
-            profile_image_url: null,
-            qr_code_url: null
-          })
-
-        if (profileError) {
-          console.error('⚠️ 프로필 생성 실패:', profileError)
-        } else {
-          console.log(`✅ 사용자 프로필이 자동으로 생성되었습니다. (Role: ${userRole})`)
-        }
-
-        // 비즈니스 카드 생성
-        const { error: cardError } = await supabase
-          .from('business_cards')
-          .insert({
-            user_id: data.user.id,
-            full_name: name || '',
-            email: email,
-            contact: '',
-            company: '',
-            role: '',
-            introduction: '',
-            profile_image_url: null,
-            qr_code_url: null,
-            is_public: true
-          })
-
-        if (cardError) {
-          console.error('⚠️ 비즈니스 카드 생성 실패:', cardError)
-        } else {
-          console.log('✅ 비즈니스 카드가 자동으로 생성되었습니다.')
-        }
-      } catch (profileError) {
-        console.error('⚠️ 프로필/카드 생성 중 오류:', profileError)
-      }
+      // 이메일 인증이 완료된 후에 프로필과 비즈니스 카드를 생성하도록 변경
+      // 인증 완료는 /verify 페이지에서 처리됨
+      console.log('✅ 회원가입 성공. 이메일 인증을 완료해주세요.')
+      // 세션을 설정하지 않음 - 인증 완료 후에 설정됨
     }
 
     return { data, error }
@@ -264,7 +209,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { error } = await supabase.auth.signOut()
 
     if (!error) {
-      set({ user: null, session: null })
+      set({ user: null, session: null, adminUser: null, isAdmin: false })
     }
 
     return { error }
@@ -274,31 +219,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const supabase = createClient()
 
     try {
-      set({ loading: true })
+      set({ loading: true, adminLoading: true })
 
       // 현재 세션 가져오기
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
         set({ user: session.user, session })
-        // 권한 확인 로그 추가
-        await checkUserRole(session.user.id)
+        // 관리자 권한 동기화
+        const { isAdmin } = await checkUserRole(session.user.id)
+        set({ adminUser: isAdmin ? session.user : null, isAdmin, adminLoading: false, adminInitialized: true })
+      } else {
+        set({ user: null, session: null, adminUser: null, isAdmin: false, adminLoading: false, adminInitialized: true })
       }
 
-      // 인증 상태 변경 구독
+      // onAuthStateChange 구독 추가 - 실시간 상태 변경 감지
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log('🔐 Auth state changed:', event, session?.user?.email)
-
           if (session) {
             set({ user: session.user, session })
-            // 권한 확인 로그 추가
-            await checkUserRole(session.user.id)
+            const { isAdmin } = await checkUserRole(session.user.id)
+            set({ adminUser: isAdmin ? session.user : null, isAdmin, adminLoading: false, adminInitialized: true })
           } else {
-            set({ user: null, session: null })
+            set({ user: null, session: null, adminUser: null, isAdmin: false, adminLoading: false, adminInitialized: true })
           }
-
-          set({ loading: false })
+          set({ loading: false, initialized: true })
         }
       )
 
@@ -308,7 +253,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return () => subscription.unsubscribe()
     } catch (error) {
       console.error('Auth initialization error:', error)
-      set({ loading: false, initialized: true })
+      set({ loading: false, initialized: true, adminLoading: false, adminInitialized: true })
     }
   },
 }))

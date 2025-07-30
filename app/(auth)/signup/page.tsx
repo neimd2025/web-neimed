@@ -99,8 +99,10 @@ export default function SignupPage() {
 
       if (result?.user) {
         console.log('✅ 회원가입 성공:', result.user.email)
-        toast.success('회원가입이 완료되었습니다! 이메일 인증 후 로그인해주세요.')
-        router.push('/login')
+        toast.success('회원가입이 완료되었습니다! 이메일 인증을 완료해주세요.')
+
+        // 인증 코드 페이지로 이동
+        router.push(`/verify?email=${encodeURIComponent(data.email)}`)
       } else {
         console.log('⚠️ 회원가입 데이터 없음:', result)
         toast.error('회원가입에 실패했습니다.')

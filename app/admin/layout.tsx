@@ -1,27 +1,38 @@
 "use client"
 
-import { useAuth } from "@/hooks/use-auth"
-import { useAdminStore } from "@/stores/admin-store"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useAuthStore } from "@/stores/auth-store"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useRef } from "react"
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { initializeAdminAuth, initialized, adminUser, loading } = useAdminStore()
-  const { user } = useAuth()
+  const { user, loading: authLoading, adminUser } = useAuthStore()
   const router = useRouter()
+  const pathname = usePathname()
+  const hasRedirected = useRef(false)
+
+  // admin/login 페이지는 인증 체크를 건너뛰고 바로 렌더링
+  if (pathname === '/admin/login' || pathname === '/admin/signup') {
+    return (
+      <div className="min-h-screen">
+        {children}
+      </div>
+    )
+  }
 
   useEffect(() => {
-    if (!initialized) {
-      initializeAdminAuth()
+    // 인증 로딩이 완료되고, 사용자가 없거나 관리자가 아니면 리다이렉트
+    if (!authLoading && !hasRedirected.current && (!user || !adminUser)) {
+      hasRedirected.current = true
+      router.push('/admin/login')
     }
-  }, [initialized, initializeAdminAuth])
+  }, [user, adminUser, authLoading, router])
 
-  // 로딩 중이면 로딩 화면 표시
-  if (loading) {
+  // 인증 로딩 중이면 로딩 화면 표시
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -32,10 +43,16 @@ export default function AdminLayout({
     )
   }
 
-  // 로그인하지 않았거나 관리자가 아니면 로그인 페이지로 리다이렉트
+  // 로그인하지 않았거나 관리자가 아니면 로딩 화면 표시 (리다이렉트 중)
   if (!user || !adminUser) {
-    router.push('/admin/login')
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">리다이렉트 중...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

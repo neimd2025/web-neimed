@@ -46,6 +46,67 @@ export default function VerifyPage() {
       if (error) {
         toast.error('인증 코드가 올바르지 않습니다. 다시 확인해주세요.')
       } else if (data.user) {
+        // 인증 완료 후 프로필과 비즈니스 카드 생성
+        try {
+          // 관리자 이메일 목록
+          const adminEmails = [
+            'admin@named.com',
+            'simjaehyeong@gmail.com',
+            'test@admin.com'
+          ]
+
+          const userRole = adminEmails.includes(data.user.email?.toLowerCase() || '') ? 'admin' : 'user'
+          const roleId = userRole === 'admin' ? 2 : 1 // admin: 2, user: 1
+
+          // 프로필 생성
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: data.user.id,
+              full_name: data.user.user_metadata?.name || '',
+              email: data.user.email || '',
+              contact: '',
+              company: '',
+              role: userRole,
+              role_id: roleId,
+              introduction: '',
+              mbti: '',
+              keywords: [],
+              profile_image_url: null,
+              qr_code_url: null
+            })
+
+          if (profileError) {
+            console.error('⚠️ 프로필 생성 실패:', profileError)
+          } else {
+            console.log(`✅ 사용자 프로필이 자동으로 생성되었습니다. (Role: ${userRole})`)
+          }
+
+          // 비즈니스 카드 생성
+          const { error: cardError } = await supabase
+            .from('business_cards')
+            .insert({
+              user_id: data.user.id,
+              full_name: data.user.user_metadata?.name || '',
+              email: data.user.email || '',
+              contact: '',
+              company: '',
+              role: '',
+              introduction: '',
+              profile_image_url: null,
+              qr_code_url: null,
+              is_public: true
+            })
+
+          if (cardError) {
+            console.error('⚠️ 비즈니스 카드 생성 실패:', cardError)
+          } else {
+            console.log('✅ 비즈니스 카드가 자동으로 생성되었습니다.')
+          }
+        } catch (profileError) {
+          console.error('⚠️ 프로필/카드 생성 중 오류:', profileError)
+        }
+
         toast.success('이메일 인증이 완료되었습니다!')
         // 인증 완료 후 바로 홈으로 이동
         router.push('/home')

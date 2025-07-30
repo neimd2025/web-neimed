@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAdminStore } from "@/stores/admin-store"
+import { useAuthStore } from "@/stores/auth-store"
 import { ArrowLeft, Download, Mail, QrCode, Search, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -21,7 +21,7 @@ interface Participant {
 
 export default function EventParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const { adminUser } = useAdminStore()
+  const { adminUser } = useAuthStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all")
   const [eventId, setEventId] = useState<string>("")

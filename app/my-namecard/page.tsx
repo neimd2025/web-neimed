@@ -3,6 +3,8 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
+import { useBusinessCards } from '@/hooks/use-business-cards'
+import { useUserProfile } from '@/hooks/use-user-profile'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Edit, QrCode, User } from 'lucide-react'
 import Link from 'next/link'
@@ -10,6 +12,8 @@ import { useEffect, useState } from 'react'
 
 export default function MyNamecardPage() {
   const { user, loading } = useAuth()
+  const { userCard, loading: cardLoading } = useBusinessCards()
+  const { profile, loading: profileLoading } = useUserProfile()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -18,6 +22,9 @@ export default function MyNamecardPage() {
 
   // 사용자 표시 이름 가져오기
   const getUserDisplayName = () => {
+    if (userCard?.full_name) return userCard.full_name
+    if (profile?.full_name) return profile.full_name
+
     if (!user) return "사용자"
 
     if (user.app_metadata?.provider === 'kakao') {
@@ -38,7 +45,72 @@ export default function MyNamecardPage() {
     return name.charAt(0)
   }
 
-  if (!mounted || loading) {
+  // 사용자 소개 가져오기
+  const getUserIntroduction = () => {
+    return userCard?.introduction || profile?.introduction || "하루하루 의미있게"
+  }
+
+  // 사용자 나이 가져오기 (birth_date에서 계산)
+  const getUserAge = () => {
+    if (profile?.birth_date) {
+      const birthDate = new Date(profile.birth_date)
+      const today = new Date()
+      const age = today.getFullYear() - birthDate.getFullYear()
+      return `${age}세`
+    }
+    return "나이 정보 없음"
+  }
+
+  // 사용자 회사/직책 정보 가져오기
+  const getUserCompanyInfo = () => {
+    const role = userCard?.role || profile?.role || "직책"
+    const company = userCard?.company || profile?.company || "회사"
+    return `${role} / ${company}`
+  }
+
+  // 사용자 MBTI 가져오기
+  const getUserMbti = () => {
+    return userCard?.mbti || profile?.mbti || "MBTI 정보 없음"
+  }
+
+  // 사용자 키워드 가져오기
+  const getUserKeywords = () => {
+    return userCard?.keywords || profile?.keywords || ["사람들과 잘 어울려요", "계획을 세우는 걸 좋아해요", "새로운 아이디어를 자주 떠올려요"]
+  }
+
+  // 사용자 관심사 가져오기 (기본값)
+  const getUserInterests = () => {
+    return ["창업", "자기계발", "지속가능성"]
+  }
+
+  // 사용자 취미 가져오기 (기본값)
+  const getUserHobbies = () => {
+    return ["독서", "자기계발", "사람", "영화감상"]
+  }
+
+  // 사용자 링크 정보 가져오기 (external_link 사용)
+  const getUserLinks = () => {
+    const externalLink = userCard?.external_link || profile?.external_link
+    if (externalLink) {
+      return [{
+        title: "외부 링크",
+        description: "추가 정보를 확인하세요",
+        url: externalLink
+      }]
+    }
+    return []
+  }
+
+  // 공유 링크 생성
+  const getShareLink = () => {
+    if (userCard?.id) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000")
+      return `${siteUrl}/business-card/${userCard.id}`
+    }
+    return "naimd.link/1s2v" // 기본값
+  }
+
+  if (!mounted || loading || cardLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -83,83 +155,55 @@ export default function MyNamecardPage() {
                 {getUserDisplayName()}
               </h2>
               <p className="text-gray-600 text-base mb-4">
-                하루하루 의미있게
+                {getUserIntroduction()}
               </p>
 
               {/* 기본 정보 */}
               <div className="space-y-2 text-sm text-gray-500">
-                <p>24세</p>
-                <p>Named / 기획</p>
-                <p>MBTI: ENTJ</p>
+                {getUserAge() !== "나이 정보 없음" && <p>{getUserAge()}</p>}
+                {(userCard?.role || profile?.role || userCard?.company || profile?.company) && (
+                  <p>{getUserCompanyInfo()}</p>
+                )}
+                {getUserMbti() !== "MBTI 정보 없음" && <p>MBTI: {getUserMbti()}</p>}
               </div>
             </div>
 
             {/* 태그 섹션들 */}
             <div className="space-y-6">
               {/* 성격 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
-                <div className="flex flex-wrap gap-2">
-                  <Badge className="bg-purple-600 text-white px-3 py-1">
-                    사람들과 잘 어울려요
-                  </Badge>
-                  <Badge className="bg-purple-600 text-white px-3 py-1">
-                    계획을 세우는 걸 좋아해요
-                  </Badge>
-                  <Badge className="bg-purple-600 text-white px-3 py-1">
-                    새로운 아이디어를 자주 떠올려요
-                  </Badge>
+              {(userCard?.keywords || profile?.keywords) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {getUserKeywords().map((keyword: string, index: number) => (
+                      <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 관심사 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">관심사</h3>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    창업
-                  </Badge>
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    자기계발
-                  </Badge>
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    지속가능성
-                  </Badge>
+              {/* 관심사 - 기본값이므로 제거 */}
+              {/* 취미 - 기본값이므로 제거 */}
+
+              {/* 링크들 */}
+              {getUserLinks().length > 0 && getUserLinks().map((link: any, index: number) => (
+                <div key={index} className="border border-gray-200 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">- {link.title || '링크'}</h4>
+                  <p className="text-gray-600 text-sm mb-2">
+                    {link.description || '링크 설명'}
+                  </p>
+                  <p className="text-gray-500 text-sm">{link.url || 'URL 없음'}</p>
                 </div>
-              </div>
-
-              {/* 취미 */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">취미</h3>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    독서
-                  </Badge>
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    자기계발
-                  </Badge>
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    사람
-                  </Badge>
-                  <Badge variant="outline" className="border-gray-200 px-3 py-1">
-                    영화감상
-                  </Badge>
-                </div>
-              </div>
-
-              {/* 링크 */}
-              <div className="border border-gray-200 rounded-xl p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">- YouTube</h4>
-                <p className="text-gray-600 text-sm mb-2">
-                  Enjoy the videos and music you love, upload original content, and share it all with friends...
-                </p>
-                <p className="text-gray-500 text-sm">www.youtube.com</p>
-              </div>
+              ))}
 
               {/* 공유 링크 */}
-              <div className="text-center">
-                <p className="text-purple-600 text-sm font-medium">naimd.link/1s2v</p>
-              </div>
+              {userCard?.id && (
+                <div className="text-center">
+                  <p className="text-purple-600 text-sm font-medium">{getShareLink()}</p>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -172,17 +216,15 @@ export default function MyNamecardPage() {
               </Button>
             </Link>
 
-                               <Link href="/profile/edit">
-                     <Button variant="outline" className="w-full h-12 border-gray-200 hover:bg-white">
-                       <Edit className="w-4 h-4 mr-2" />
-                       명함 수정하기
-                     </Button>
-                   </Link>
+            <Link href="/profile/edit">
+              <Button variant="outline" className="w-full h-12 border-gray-200 hover:bg-white">
+                <Edit className="w-4 h-4 mr-2" />
+                명함 수정하기
+              </Button>
+            </Link>
           </div>
         </motion.div>
       </div>
-
-
     </div>
   )
 }
@@ -195,3 +237,4 @@ function Card({ children, className = "" }: { children: React.ReactNode, classNa
     </div>
   )
 }
+
