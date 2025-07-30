@@ -1,0 +1,5 @@
+---
+alwaysApply: false
+---
+## supabase 사용
+- supabase 작업시에는 supabase-named mcp 사용
