@@ -40,14 +40,14 @@ export default function MyNamecardPage() {
 
   if (!mounted || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center justify-between">
@@ -173,7 +173,7 @@ export default function MyNamecardPage() {
             </Link>
 
                                <Link href="/profile/edit">
-                     <Button variant="outline" className="w-full h-12 border-gray-200 hover:bg-gray-50">
+                     <Button variant="outline" className="w-full h-12 border-gray-200 hover:bg-white">
                        <Edit className="w-4 h-4 mr-2" />
                        명함 수정하기
                      </Button>

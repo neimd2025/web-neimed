@@ -52,7 +52,7 @@ export default function EventJoinPage() {
   const recentEvents = events.slice(0, 3)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export default function EventJoinPage() {
                 {recentEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-white rounded-lg"
                   >
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{event.title}</h3>

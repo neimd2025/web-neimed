@@ -11,7 +11,7 @@ export default function ErrorPage() {
   const message = searchParams.get('message') || '알 수 없는 오류가 발생했습니다.'
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">

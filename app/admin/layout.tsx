@@ -1,9 +1,9 @@
 "use client"
 
-import { useAdminStore } from "@/stores/admin-store"
 import { useAuth } from "@/hooks/use-auth"
-import { useEffect } from "react"
+import { useAdminStore } from "@/stores/admin-store"
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 export default function AdminLayout({
   children,
@@ -23,7 +23,7 @@ export default function AdminLayout({
   // 로딩 중이면 로딩 화면 표시
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">로딩 중...</p>
@@ -39,7 +39,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {children}
     </div>
   )
