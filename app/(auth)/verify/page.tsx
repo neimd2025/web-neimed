@@ -66,7 +66,7 @@ export default function VerifyPage() {
     setResending(true)
     try {
       const { error } = await supabase.auth.resend({
-        type: 'email',
+        type: 'signup',
         email
       })
 

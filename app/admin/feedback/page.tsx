@@ -4,10 +4,62 @@ import AdminHeader from "@/components/admin/admin-header"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAdminStore } from "@/stores/admin-store"
+import { createClient } from "@/utils/supabase/client"
 import { Calendar, MessageSquare, Star } from "lucide-react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+
+interface Feedback {
+  id: string
+  user_id: string
+  event_id: string
+  rating: number
+  feedback: string
+  created_at: string
+  user_profiles: {
+    full_name: string
+  } | null
+  events: {
+    title: string
+  } | null
+}
 
 export default function AdminFeedbackPage() {
-  const { feedbacks } = useAdminStore()
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
+  const [loading, setLoading] = useState(true)
+  const { adminUser } = useAdminStore()
+  const supabase = createClient()
+
+  useEffect(() => {
+    fetchFeedbacks()
+  }, [])
+
+  const fetchFeedbacks = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('feedback')
+        .select(`
+          *,
+          user_profiles(full_name),
+          events(title)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('피드백 데이터 가져오기 오류:', error)
+        toast.error('피드백 데이터를 불러오는데 실패했습니다.')
+        return
+      }
+
+      setFeedbacks(data || [])
+    } catch (error) {
+      console.error('피드백 데이터 가져오기 오류:', error)
+      toast.error('피드백 데이터를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, index) => (
@@ -80,15 +132,15 @@ export default function AdminFeedbackPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <h3 className="font-bold text-gray-900">{feedback.memberName}</h3>
-                      <Badge className="bg-purple-100 text-purple-700 text-xs">{feedback.eventName}</Badge>
+                      <h3 className="font-bold text-gray-900">{feedback.user_profiles?.full_name || "익명"}</h3>
+                      <Badge className="bg-purple-100 text-purple-700 text-xs">{feedback.events?.title || "알 수 없음"}</Badge>
                     </div>
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="flex items-center space-x-1">{renderStars(feedback.rating)}</div>
                       <span className="text-sm text-gray-500">{feedback.rating}점</span>
                     </div>
                   </div>
-                  <span className="text-sm text-gray-500">{feedback.date}</span>
+                  <span className="text-sm text-gray-500">{feedback.created_at}</span>
                 </div>
 
                 <p className="text-gray-700 leading-relaxed">{feedback.feedback}</p>
@@ -96,9 +148,9 @@ export default function AdminFeedbackPage() {
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{feedback.memberName.charAt(0)}</span>
+                      <span className="text-white font-bold text-sm">{feedback.user_profiles?.full_name?.charAt(0) || "?"}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{feedback.memberName}</span>
+                    <span className="text-sm text-gray-600">{feedback.user_profiles?.full_name || "익명"}</span>
                   </div>
                   <Badge
                     variant="outline"

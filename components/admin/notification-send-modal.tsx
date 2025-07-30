@@ -3,36 +3,68 @@
 import type React from "react"
 
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { X, Bell } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
+import { Bell, X } from "lucide-react"
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useAdminStore } from "@/stores/admin-store"
+import { toast } from "sonner"
 
 interface NotificationSendModalProps {
   open: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export default function NotificationSendModal({ open, onClose }: NotificationSendModalProps) {
+export default function NotificationSendModal({ open, onClose, onSuccess }: NotificationSendModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     message: "",
-    targetType: "all" as "all" | "specific" | "event_participants",
+    target_type: "all" as "all" | "specific" | "event_participants",
   })
-  const { sendPushNotification } = useAdminStore()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const supabase = createClient()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    sendPushNotification(formData)
-    setFormData({
-      title: "",
-      message: "",
-      targetType: "all",
-    })
-    onClose()
+    setIsSubmitting(true)
+
+    try {
+      const notificationData = {
+        title: formData.title,
+        message: formData.message,
+        target_type: formData.target_type,
+        status: "sent" as "draft" | "sent" | "scheduled",
+        delivered_count: 0,
+        read_count: 0,
+        sent_date: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert([notificationData])
+
+      if (error) {
+        toast.error('알림 발송에 실패했습니다.')
+        return
+      }
+
+      toast.success('알림이 성공적으로 발송되었습니다!')
+      setFormData({
+        title: "",
+        message: "",
+        target_type: "all",
+      })
+      onSuccess?.()
+      onClose()
+    } catch (error) {
+      console.error('알림 발송 오류:', error)
+      toast.error('알림 발송 중 오류가 발생했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -83,8 +115,8 @@ export default function NotificationSendModal({ open, onClose }: NotificationSen
                   type="radio"
                   name="targetType"
                   value="all"
-                  checked={formData.targetType === "all"}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value as any })}
+                  checked={formData.target_type === "all"}
+                  onChange={(e) => setFormData({ ...formData, target_type: e.target.value as any })}
                   className="text-purple-600"
                 />
                 <span>전체 회원</span>
@@ -94,8 +126,8 @@ export default function NotificationSendModal({ open, onClose }: NotificationSen
                   type="radio"
                   name="targetType"
                   value="event_participants"
-                  checked={formData.targetType === "event_participants"}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value as any })}
+                  checked={formData.target_type === "event_participants"}
+                  onChange={(e) => setFormData({ ...formData, target_type: e.target.value as any })}
                   className="text-purple-600"
                 />
                 <span>이벤트 참가자</span>
@@ -105,8 +137,8 @@ export default function NotificationSendModal({ open, onClose }: NotificationSen
                   type="radio"
                   name="targetType"
                   value="specific"
-                  checked={formData.targetType === "specific"}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value as any })}
+                  checked={formData.target_type === "specific"}
+                  onChange={(e) => setFormData({ ...formData, target_type: e.target.value as any })}
                   className="text-purple-600"
                 />
                 <span>특정 회원</span>

@@ -4,21 +4,24 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAdminStore } from "@/stores/admin-store"
-import { ArrowLeft, Calendar, MapPin, Plus, Search, Users } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
+import { ArrowLeft, Calendar, MapPin, Plus, Search, Trash2, Users } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 interface Event {
   id: string
   title: string
-  startDate: string
-  endDate: string
+  start_date: string
+  end_date: string
   location: string
   status: "upcoming" | "ongoing" | "completed"
-  participants: number
-  maxParticipants: number
-  eventCode: string
+  max_participants: number
+  event_code: string
+  created_at: string
+  updated_at: string
 }
 
 export default function AdminEventsPage() {
@@ -26,43 +29,37 @@ export default function AdminEventsPage() {
   const { adminUser } = useAdminStore()
   const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const [events, setEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  // 더미 이벤트 데이터
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: "1",
-      title: "Neimd 네트워킹 데모 이벤트",
-      startDate: "2025-01-25T14:00",
-      endDate: "2025-01-25T18:00",
-      location: "온라인",
-      status: "upcoming",
-      participants: 45,
-      maxParticipants: 100,
-      eventCode: "DEMO01"
-    },
-    {
-      id: "2",
-      title: "스타트업 네트워킹 밋업",
-      startDate: "2025-01-20T19:00",
-      endDate: "2025-01-20T22:00",
-      location: "서울시 강남구",
-      status: "completed",
-      participants: 78,
-      maxParticipants: 80,
-      eventCode: "STARTUP01"
-    },
-    {
-      id: "3",
-      title: "개발자 커뮤니티 모임",
-      startDate: "2025-01-30T15:00",
-      endDate: "2025-01-30T17:00",
-      location: "서울시 서초구",
-      status: "upcoming",
-      participants: 23,
-      maxParticipants: 50,
-      eventCode: "DEV01"
+  // 이벤트 데이터 가져오기
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('이벤트 가져오기 오류:', error)
+          toast.error('이벤트를 불러오는데 실패했습니다.')
+          return
+        }
+
+        setEvents(data || [])
+      } catch (error) {
+        console.error('이벤트 가져오기 오류:', error)
+        toast.error('이벤트를 불러오는데 실패했습니다.')
+      } finally {
+        setLoading(false)
+      }
     }
-  ])
+
+    fetchEvents()
+  }, [supabase])
 
   const getStatusBadge = (status: Event["status"]) => {
     const statusConfig = {
@@ -88,7 +85,7 @@ export default function AdminEventsPage() {
   const filteredEvents = events.filter(event => {
     const matchesFilter = filter === "all" || event.status === filter
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.eventCode.toLowerCase().includes(searchTerm.toLowerCase())
+                         event.event_code.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesFilter && matchesSearch
   })
 
@@ -96,13 +93,22 @@ export default function AdminEventsPage() {
     if (!confirm("정말로 이 이벤트를 삭제하시겠습니까?")) return
 
     try {
-      // 실제로는 Supabase에서 이벤트를 삭제해야 함
-      await new Promise(resolve => setTimeout(resolve, 500)) // 시뮬레이션
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+
+      if (error) {
+        console.error('이벤트 삭제 오류:', error)
+        toast.error('이벤트 삭제에 실패했습니다.')
+        return
+      }
 
       setEvents(prev => prev.filter(event => event.id !== eventId))
-      console.log('이벤트 삭제:', eventId)
+      toast.success('이벤트가 성공적으로 삭제되었습니다.')
     } catch (error) {
       console.error('이벤트 삭제 오류:', error)
+      toast.error('이벤트 삭제에 실패했습니다.')
     }
   }
 
@@ -168,7 +174,11 @@ export default function AdminEventsPage() {
 
           {/* 이벤트 목록 */}
           <div className="space-y-4">
-            {filteredEvents.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-12">
+                <p>이벤트를 불러오는 중입니다...</p>
+              </div>
+            ) : filteredEvents.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -196,7 +206,7 @@ export default function AdminEventsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Calendar className="h-4 w-4" />
-                            <span>{formatDate(event.startDate)}</span>
+                            <span>{formatDate(event.start_date)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <MapPin className="h-4 w-4" />
@@ -204,12 +214,12 @@ export default function AdminEventsPage() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Users className="h-4 w-4" />
-                            <span>{event.participants}/{event.maxParticipants}명</span>
+                            <span>최대 {event.max_participants}명</span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-4 text-sm">
-                          <span className="text-gray-500">이벤트 코드: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{event.eventCode}</span></span>
+                          <span className="text-gray-500">이벤트 코드: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{event.event_code}</span></span>
                         </div>
                       </div>
 
@@ -230,6 +240,7 @@ export default function AdminEventsPage() {
                           className="text-red-600 border-red-200 hover:bg-red-50"
                           onClick={() => handleDeleteEvent(event.id)}
                         >
+                          <Trash2 className="h-4 w-4 mr-1" />
                           삭제
                         </Button>
                       </div>

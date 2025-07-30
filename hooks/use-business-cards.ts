@@ -5,9 +5,14 @@ import { useAuth } from './use-auth'
 
 type BusinessCard = Database['public']['Tables']['business_cards']['Row']
 type BusinessCardInsert = Database['public']['Tables']['business_cards']['Insert']
-type CollectedCard = Database['public']['Tables']['collected_cards']['Row'] & {
-  business_cards: BusinessCard | null
+type CollectedCard = {
+  id: string
+  card_id: string | null
+  collector_id: string | null
+  collected_at: string | null
+  is_favorite: boolean | null
   memo?: string | null
+  business_cards: BusinessCard | null
 }
 
 export const useBusinessCards = () => {
@@ -30,7 +35,14 @@ export const useBusinessCards = () => {
       setError(null)
 
       const card = await businessCardAPI.getUserBusinessCard(user.id)
-      setUserCard(card)
+
+      if (card) {
+        setUserCard(card)
+      } else {
+        // 명함이 없는 경우 null로 설정 (오류가 아님)
+        setUserCard(null)
+        console.log('사용자 명함이 아직 생성되지 않았습니다.')
+      }
     } catch (err) {
       console.error('Error loading user card:', err)
       setError('명함을 불러오는데 실패했습니다.')
@@ -52,7 +64,7 @@ export const useBusinessCards = () => {
       setError(null)
 
       const cards = await collectedCardAPI.getUserCollectedCards(user.id)
-      setCollectedCards(cards)
+      setCollectedCards(cards as CollectedCard[])
     } catch (err) {
       console.error('Error loading collected cards:', err)
       setError('수집된 명함을 불러오는데 실패했습니다.')
@@ -97,13 +109,30 @@ export const useBusinessCards = () => {
       setLoading(true)
       setError(null)
 
-      const updatedCard = await businessCardAPI.updateBusinessCard(cardId, updates)
+      // 서버 사이드 API 호출
+      const response = await fetch('/api/auth/update-business-card', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cardId: cardId,
+          updates: updates
+        })
+      })
 
-      if (updatedCard) {
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '명함 업데이트에 실패했습니다.')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
         if (userCard?.id === cardId) {
-          setUserCard(updatedCard)
+          setUserCard(result.data)
         }
-        return updatedCard
+        return result.data
       } else {
         throw new Error('명함 업데이트에 실패했습니다.')
       }
@@ -170,12 +199,11 @@ export const useBusinessCards = () => {
 
       const collection = await collectedCardAPI.collectCard({
         collector_id: user.id,
-        card_id: cardId,
-        memo
+        card_id: cardId
       })
 
       if (collection) {
-        setCollectedCards(prev => [collection, ...prev])
+        setCollectedCards(prev => [collection as CollectedCard, ...prev])
         return collection
       } else {
         throw new Error('명함 수집에 실패했습니다.')

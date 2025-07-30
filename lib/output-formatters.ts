@@ -48,8 +48,8 @@ export class OutputFormatter {
    * Format workflow into specified output format
    */
   format(
-    workflow: GeneratedWorkflow, 
-    format: OutputFormat, 
+    workflow: GeneratedWorkflow,
+    format: OutputFormat,
     options: Partial<FormattingOptions> = {},
     dependencyAnalysis?: DependencyAnalysis
   ): FormattedOutput {
@@ -91,7 +91,7 @@ export class OutputFormatter {
     options: Partial<FormattingOptions> = {},
     dependencyAnalysis?: DependencyAnalysis
   ): FormattedOutput[] {
-    return formats.map(format => 
+    return formats.map(format =>
       this.format(workflow, format, options, dependencyAnalysis)
     );
   }
@@ -99,23 +99,23 @@ export class OutputFormatter {
   private initializeTemplates(): void {
     // Roadmap Template
     this.templates.set('roadmap', new RoadmapTemplate());
-    
+
     // Tasks Template
     this.templates.set('tasks', new TasksTemplate());
-    
+
     // Detailed Template
     this.templates.set('detailed', new DetailedTemplate());
-    
+
     // JSON Template
     this.templates.set('json', new JSONTemplate());
-    
+
     // Markdown Template
     this.templates.set('markdown', new MarkdownTemplate());
   }
 
   private generateMetadata(workflow: GeneratedWorkflow, format: OutputFormat): OutputMetadata {
     const totalTasks = workflow.phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
-    const avgRiskScore = workflow.risks 
+    const avgRiskScore = workflow.risks
       ? workflow.risks.reduce((sum, risk) => sum + this.getRiskScore(risk), 0) / workflow.risks.length
       : 0;
 
@@ -153,8 +153,8 @@ export class OutputFormatter {
 // Abstract base template
 abstract class OutputTemplate {
   abstract render(
-    workflow: GeneratedWorkflow, 
-    options: FormattingOptions, 
+    workflow: GeneratedWorkflow,
+    options: FormattingOptions,
     dependencyAnalysis?: DependencyAnalysis
   ): string;
 
@@ -172,7 +172,7 @@ abstract class OutputTemplate {
       frontend: '🎨 Frontend',
       backend: '⚙️ Backend',
       security: '🛡️ Security',
-      devops: '🚀 DevOps', 
+      devops: '🚀 DevOps',
       qa: '🧪 QA',
       performance: '⚡ Performance',
       analyzer: '🔍 Analyzer',
@@ -203,7 +203,7 @@ abstract class OutputTemplate {
 class RoadmapTemplate extends OutputTemplate {
   render(workflow: GeneratedWorkflow, options: FormattingOptions, dependencyAnalysis?: DependencyAnalysis): string {
     let output = `# ${workflow.title} - Implementation Roadmap\n\n`;
-    
+
     // Metadata section
     output += `**Strategy**: ${workflow.strategy.toUpperCase()}\n`;
     output += `**Primary Persona**: ${this.formatPersona(workflow.primaryPersona)}\n`;
@@ -232,7 +232,7 @@ class RoadmapTemplate extends OutputTemplate {
       output += `## Phase ${index + 1}: ${phase.name}\n`;
       output += `**Duration**: ${phase.duration}\n`;
       output += `**Tasks**: ${phase.tasks.length}\n`;
-      
+
       if (options.includeEstimates) {
         const totalHours = phase.tasks.reduce((sum, task) => sum + task.estimatedHours, 0);
         output += `**Effort**: ${this.formatDuration(totalHours)}\n`;
@@ -301,11 +301,11 @@ class TasksTemplate extends OutputTemplate {
       phase.tasks.forEach(task => {
         output += `### ${task.title}\n`;
         output += `**Persona**: ${this.formatPersona(task.persona)}\n`;
-        
+
         if (options.includeEstimates) {
           output += `**Estimated Time**: ${this.formatDuration(task.estimatedHours)}\n`;
         }
-        
+
         output += `**Complexity**: ${task.complexity}\n`;
         output += `**Description**: ${task.description}\n\n`;
 
@@ -350,18 +350,18 @@ class DetailedTemplate extends OutputTemplate {
     output += `**Project Strategy**: ${workflow.strategy}\n`;
     output += `**Primary Persona**: ${this.formatPersona(workflow.primaryPersona)}\n`;
     output += `**Estimated Duration**: ${workflow.estimatedDuration}\n`;
-    
+
     const totalTasks = workflow.phases.reduce((sum, phase) => sum + phase.tasks.length, 0);
-    const totalHours = workflow.phases.reduce((sum, phase) => 
+    const totalHours = workflow.phases.reduce((sum, phase) =>
       sum + phase.tasks.reduce((taskSum, task) => taskSum + task.estimatedHours, 0), 0);
-    
+
     output += `**Total Tasks**: ${totalTasks}\n`;
     output += `**Total Effort**: ${this.formatDuration(totalHours)}\n\n`;
 
     // Dependency analysis
     if (options.includeDependencies && dependencyAnalysis) {
       output += `## 🔗 Dependency Analysis\n\n`;
-      
+
       if (dependencyAnalysis.criticalPath.length > 0) {
         output += `### Critical Path (${dependencyAnalysis.criticalPath.length} tasks)\n`;
         output += `Tasks on the critical path will directly impact project timeline if delayed.\n\n`;
@@ -397,17 +397,17 @@ class DetailedTemplate extends OutputTemplate {
       // Tasks with full details
       phase.tasks.forEach((task, taskIndex) => {
         output += `### Task ${phaseIndex + 1}.${taskIndex + 1}: ${task.title}\n\n`;
-        
+
         // Task metadata
         output += `| Attribute | Value |\n`;
         output += `|-----------|-------|\n`;
         output += `| **Persona** | ${this.formatPersona(task.persona)} |\n`;
         output += `| **Complexity** | ${task.complexity} |\n`;
-        
+
         if (options.includeEstimates) {
           output += `| **Estimated Time** | ${this.formatDuration(task.estimatedHours)} |\n`;
         }
-        
+
         output += `| **Phase** | ${task.phase.name} |\n`;
         output += `| **MCP Servers** | ${task.mcpServers.join(', ') || 'None'} |\n\n`;
 
@@ -418,7 +418,7 @@ class DetailedTemplate extends OutputTemplate {
         if (options.includePersonaGuidance) {
           output += `**Implementation Approach**:\n`;
           output += `As a ${task.persona} specialist, focus on:\n`;
-          
+
           const personaGuidance = this.getPersonaGuidance(task.persona);
           personaGuidance.forEach(guidance => {
             output += `- ${guidance}\n`;
@@ -495,7 +495,7 @@ class DetailedTemplate extends OutputTemplate {
       ]
     };
 
-    return guidance[persona] || ['Apply domain expertise to implementation'];
+    return guidance[persona as keyof typeof guidance] || ['Apply domain expertise to implementation'];
   }
 }
 

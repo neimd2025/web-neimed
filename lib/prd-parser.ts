@@ -3,9 +3,9 @@
  * Supports multiple formats and intelligent content analysis
  */
 
-import { PRDSection, RequirementSet, Requirement, Constraint, Assumption, PersonaType } from './workflow-generator';
+import { Assumption, Constraint, PersonaType, PRDSection, Requirement, RequirementSet } from './workflow-generator';
 
-export { RequirementSet };
+export type { RequirementSet };
 
 export interface PRDMetadata {
   title: string;

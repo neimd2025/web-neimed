@@ -18,13 +18,13 @@ export interface QualityGate {
   metrics: QualityMetric[];
 }
 
-export type QualityCategory = 
-  | 'completeness' 
-  | 'consistency' 
-  | 'feasibility' 
-  | 'security' 
-  | 'performance' 
-  | 'maintainability' 
+export type QualityCategory =
+  | 'completeness'
+  | 'consistency'
+  | 'feasibility'
+  | 'security'
+  | 'performance'
+  | 'maintainability'
   | 'testability'
   | 'compliance';
 
@@ -181,9 +181,9 @@ export class QualityGateManager {
   ): Promise<QualityReport> {
     const qualityProfile = this.profiles.get(profile) || this.profiles.get('standard')!;
     const applicableGates = this.selectApplicableGates(workflow, context, qualityProfile);
-    
+
     const results: QualityGateResult[] = [];
-    
+
     for (const gate of applicableGates) {
       const startTime = Date.now();
       try {
@@ -657,7 +657,7 @@ export class QualityGateManager {
     let score = 100;
 
     // Calculate total effort
-    const totalHours = workflow.phases.reduce((sum, phase) => 
+    const totalHours = workflow.phases.reduce((sum, phase) =>
       sum + phase.tasks.reduce((taskSum, task) => taskSum + task.estimatedHours, 0), 0);
 
     // Check against timeline constraints
@@ -696,8 +696,8 @@ export class QualityGateManager {
 
     // Check for security-related tasks
     const securityTasks = workflow.phases.flatMap(phase => phase.tasks)
-      .filter(task => 
-        task.persona === 'security' || 
+      .filter(task =>
+        task.persona === 'security' ||
         task.title.toLowerCase().includes('security') ||
         task.description.toLowerCase().includes('security')
       );
@@ -750,10 +750,9 @@ export class QualityGateManager {
 
     // Check testing task ratio
     const allTasks = workflow.phases.flatMap(phase => phase.tasks);
-    const testingTasks = allTasks.filter(task => 
-      task.persona === 'qa' || 
-      task.title.toLowerCase().includes('test') ||
-      task.category === 'testing'
+    const testingTasks = allTasks.filter(task =>
+      task.persona === 'qa' ||
+      task.title.toLowerCase().includes('test')
     );
 
     const testRatio = testingTasks.length / Math.max(1, allTasks.length);
@@ -788,7 +787,7 @@ export class QualityGateManager {
 
     // Check for compliance-related constraints
     const complianceConstraints = context.constraints.filter(c => c.type === 'compliance');
-    
+
     // Implementation would check specific compliance requirements
     // For now, basic validation
 
@@ -804,8 +803,8 @@ export class QualityGateManager {
 
   // Helper methods
   private selectApplicableGates(
-    workflow: GeneratedWorkflow, 
-    context: ValidationContext, 
+    workflow: GeneratedWorkflow,
+    context: ValidationContext,
     profile: QualityProfile
   ): QualityGate[] {
     return profile.gates.map(gateId => this.gates.get(gateId)!).filter(Boolean);
@@ -814,7 +813,7 @@ export class QualityGateManager {
   private generateQualityReport(results: QualityGateResult[]): QualityReport {
     const passed = results.filter(r => r.result.passed).length;
     const totalScore = results.reduce((sum, r) => sum + r.result.score, 0) / results.length;
-    
+
     const allIssues = results.flatMap(r => r.result.issues);
     const criticalIssues = allIssues.filter(i => i.severity === 'critical').length;
     const majorIssues = allIssues.filter(i => i.severity === 'major').length;
@@ -840,11 +839,11 @@ export class QualityGateManager {
   private calculateTaskCompletionRate(workflow: GeneratedWorkflow): number {
     const allTasks = workflow.phases.flatMap(phase => phase.tasks);
     if (allTasks.length === 0) return 0;
-    
-    const completeTasks = allTasks.filter(task => 
+
+    const completeTasks = allTasks.filter(task =>
       task.description && task.description.trim().length > 0
     );
-    
+
     return (completeTasks.length / allTasks.length) * 100;
   }
 
@@ -855,7 +854,7 @@ export class QualityGateManager {
 
   private generateCompletenessRecommendations(issues: ValidationIssue[]): Recommendation[] {
     const recommendations: Recommendation[] = [];
-    
+
     if (issues.some(i => i.id === 'no-phases')) {
       recommendations.push({
         id: 'add-phases',
@@ -867,7 +866,7 @@ export class QualityGateManager {
         effort: 'medium'
       });
     }
-    
+
     return recommendations;
   }
 

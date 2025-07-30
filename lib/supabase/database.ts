@@ -34,31 +34,26 @@ export const userProfileAPI = {
 
     if (error) {
       console.error('Error fetching user profile:', error)
-
-      // 프로필이 없는 경우 자동으로 생성
-      if (error.code === 'PGRST116') {
-        console.log('Creating new user profile for:', userId)
-        const newProfile: UserProfileInsert = {
-          id: userId,
-          name: '',
-          email: '',
-          phone: '',
-          company: '',
-          position: '',
-          bio: '',
-          mbti: '',
-          keywords: [],
-          profile_image_url: null,
-          is_public: true
-        }
-
-        return await this.createUserProfile(newProfile)
-      }
-
       return null
     }
 
     return data
+  },
+
+  // 이메일 중복 검사
+  async checkEmailExists(email: string): Promise<boolean> {
+    const supabase = createClient()
+
+    try {
+      // 실제로는 회원가입 시도로 중복을 확인하는 것이 더 정확합니다
+      // 여기서는 간단한 시뮬레이션을 위해 false 반환
+      // 실제 구현에서는 서버 사이드에서 처리하거나
+      // 회원가입 시도 후 에러 메시지로 판단하는 것이 좋습니다
+      return false
+    } catch (error) {
+      console.error('이메일 중복 검사 오류:', error)
+      return false
+    }
   },
 
   // 사용자 프로필 생성
@@ -236,28 +231,28 @@ export const businessCardAPI = {
       .from('business_cards')
       .select('*')
       .eq('user_id', userId)
+      .limit(1)
       .single()
 
     if (error) {
       console.error('Error fetching business card:', error)
 
-      // 비즈니스 카드가 없는 경우 자동으로 생성
-      if (error.code === 'PGRST116') {
-        console.log('Creating new business card for:', userId)
-        const newCard: BusinessCardInsert = {
-          user_id: userId,
-          name: '',
-          email: '',
-          phone: '',
-          company: '',
-          position: '',
-          bio: '',
-          profile_image_url: null,
-          qr_code_url: null,
-          is_public: true
-        }
+      // 여러 행이 있는 경우 중복 정리
+      if (error.code === 'PGRST116' && error.details?.includes('5 rows')) {
+        console.log('🔄 중복 비즈니스 카드 발견, 정리 중...')
+        await this.cleanupDuplicateBusinessCards(userId)
 
-        return await this.createBusinessCard(newCard)
+        // 정리 후 다시 시도
+        const { data: retryData, error: retryError } = await supabase
+          .from('business_cards')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(1)
+          .single()
+
+        if (!retryError && retryData) {
+          return retryData
+        }
       }
 
       return null
@@ -337,6 +332,40 @@ export const businessCardAPI = {
     }
 
     return true
+  },
+
+  // 중복 비즈니스 카드 정리
+  async cleanupDuplicateBusinessCards(userId: string): Promise<void> {
+    const supabase = createClient()
+
+    // 사용자의 모든 비즈니스 카드 가져오기
+    const { data: cards, error } = await supabase
+      .from('business_cards')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching business cards for cleanup:', error)
+      return
+    }
+
+    // 첫 번째 카드만 남기고 나머지 삭제
+    if (cards && cards.length > 1) {
+      const cardsToDelete = cards.slice(1)
+      const cardIds = cardsToDelete.map(card => card.id)
+
+      const { error: deleteError } = await supabase
+        .from('business_cards')
+        .delete()
+        .in('id', cardIds)
+
+      if (deleteError) {
+        console.error('Error deleting duplicate business cards:', deleteError)
+      } else {
+        console.log(`✅ ${cardsToDelete.length}개의 중복 비즈니스 카드를 정리했습니다.`)
+      }
+    }
   }
 }
 
@@ -458,9 +487,22 @@ export const notificationAPI = {
   async markNotificationAsRead(notificationId: string): Promise<boolean> {
     const supabase = createClient()
 
+    // 먼저 현재 읽음 카운트를 가져옵니다
+    const { data: currentNotification, error: fetchError } = await supabase
+      .from('notifications')
+      .select('read_count')
+      .eq('id', notificationId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching notification:', fetchError)
+      return false
+    }
+
+    // 읽음 카운트를 1 증가시킵니다
     const { error } = await supabase
       .from('notifications')
-      .update({ read_count: supabase.sql`read_count + 1` })
+      .update({ read_count: (currentNotification?.read_count || 0) + 1 })
       .eq('id', notificationId)
 
     if (error) {

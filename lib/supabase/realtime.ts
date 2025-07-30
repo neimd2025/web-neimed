@@ -104,8 +104,8 @@ export class RealtimeManager {
           console.log('참가자 업데이트:', payload)
           callback({
             eventId,
-            participantId: payload.new?.user_id || payload.old?.user_id,
-            status: payload.new?.status,
+            participantId: (payload.new as any)?.user_id || (payload.old as any)?.user_id,
+            status: (payload.new as any)?.status,
             updatedAt: new Date().toISOString()
           } as ParticipantUpdate)
         }

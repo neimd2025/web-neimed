@@ -148,18 +148,11 @@ export default function ScanCardPage() {
     console.log('수동 입력 페이지로 이동')
   }, [])
 
-  // QR 코드 스캔 시뮬레이션 (개발용)
+  // QR 코드 스캔 시뮬레이션 (개발용) - 실제 구현에서는 제거
   const simulateQRScan = useCallback(() => {
-    const mockQRData = JSON.stringify({
-      id: '123',
-      name: '김철수',
-      company: '테크컴퍼니',
-      position: '개발자',
-      email: 'kim@tech.com',
-      phone: '010-1234-5678'
-    })
-    handleQRCodeDetected(mockQRData)
-  }, [handleQRCodeDetected])
+    // 실제 QR 스캔 기능으로 대체 예정
+    console.log('QR 스캔 시뮬레이션 - 실제 구현에서는 카메라로 QR 코드를 스캔합니다.')
+  }, [])
 
   return (
     <div className="min-h-screen bg-black">

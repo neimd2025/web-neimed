@@ -1,231 +1,213 @@
 "use client"
 
-import type React from "react"
-
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, Eye, EyeOff, UserPlus } from "lucide-react"
+import { useAdminStore } from "@/stores/admin-store"
+import { useAuthStore } from "@/stores/auth-store"
+import { Eye, EyeOff, Lock, Mail, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { toast } from "sonner"
 
 export default function AdminSignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const router = useRouter()
+  const { signUpWithEmail } = useAuthStore()
+  const { adminUser, loading } = useAdminStore()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    company: "",
-    role: "admin" as "admin" | "super_admin"
   })
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    setError("") // 에러 메시지 초기화
+  // 이미 관리자로 로그인된 경우 대시보드로 리다이렉트
+  if (adminUser && !loading) {
+    router.push('/admin/dashboard')
+    return null
   }
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+    setIsSubmitting(true)
 
-    // 유효성 검사
+    // 비밀번호 확인
     if (formData.password !== formData.confirmPassword) {
-      setError("비밀번호가 일치하지 않습니다.")
+      toast.error('비밀번호가 일치하지 않습니다.')
+      setIsSubmitting(false)
       return
     }
 
+    // 비밀번호 길이 확인
     if (formData.password.length < 6) {
-      setError("비밀번호는 최소 6자 이상이어야 합니다.")
+      toast.error('비밀번호는 최소 6자 이상이어야 합니다.')
+      setIsSubmitting(false)
       return
     }
-
-    if (!formData.name || !formData.email || !formData.company) {
-      setError("모든 필드를 입력해주세요.")
-      return
-    }
-
-    setIsLoading(true)
 
     try {
-      // 실제로는 Supabase에 관리자 계정을 생성해야 함
-      await new Promise(resolve => setTimeout(resolve, 1000)) // 시뮬레이션
+      const { data, error } = await signUpWithEmail(formData.email, formData.password, formData.name, true)
 
-      console.log('관리자 계정 생성:', formData)
+      if (error) {
+        toast.error('회원가입에 실패했습니다. 다시 시도해주세요.')
+        return
+      }
 
-      // 성공 시 로그인 페이지로 이동
-      router.push('/admin/login')
+      if (data?.user) {
+        toast.success('관리자 계정이 성공적으로 생성되었습니다! 이메일 인증 후 로그인해주세요.')
+        router.push('/admin/login')
+      }
     } catch (error) {
-      console.error('관리자 회원가입 오류:', error)
-      setError("회원가입 중 오류가 발생했습니다.")
+      console.error('회원가입 오류:', error)
+      toast.error('회원가입 중 오류가 발생했습니다.')
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-            <UserPlus className="h-5 w-5 text-white" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <div className="mx-auto h-12 w-12 bg-purple-600 rounded-lg flex items-center justify-center">
+            <User className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">관리자 회원가입</h1>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            관리자 회원가입
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            관리자 계정을 생성하세요
+          </p>
         </div>
-      </div>
 
-      <div className="px-6 py-8">
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">관리자 계정 생성</h2>
-            <p className="text-gray-600">Neimd Network 관리자 계정을 만드세요</p>
-          </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                이름
+              </label>
+              <div className="mt-1 relative">
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="pl-10"
+                  placeholder="관리자 이름"
+                />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
 
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6 space-y-6">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-gray-700 font-medium">
-                    이름
-                  </Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="관리자 이름"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl"
-                    required
-                  />
-                </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                이메일
+              </label>
+              <div className="mt-1 relative">
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="pl-10"
+                  placeholder="admin@named.com"
+                />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-700 font-medium">
-                    이메일 주소
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@example.com"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="company" className="text-gray-700 font-medium">
-                    회사/조직
-                  </Label>
-                  <Input
-                    id="company"
-                    type="text"
-                    placeholder="회사명 또는 조직명"
-                    value={formData.company}
-                    onChange={(e) => handleInputChange("company", e.target.value)}
-                    className="h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="text-gray-700 font-medium">
-                    관리자 권한
-                  </Label>
-                  <select
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => handleInputChange("role", e.target.value)}
-                    className="w-full h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl px-3 bg-white"
-                  >
-                    <option value="admin">일반 관리자</option>
-                    <option value="super_admin">슈퍼 관리자</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-gray-700 font-medium">
-                    비밀번호
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="비밀번호를 입력하세요"
-                      value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
-                      className="h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl pr-12"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">
-                    비밀번호 확인
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="비밀번호를 다시 입력하세요"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="h-12 border-2 border-gray-200 focus:border-purple-500 rounded-xl pr-12"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </Button>
-                  </div>
-                </div>
-
-                {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-
-                <Button
-                  type="submit"
-                  className="w-full h-12 bg-purple-600 hover:bg-purple-700 rounded-xl text-lg font-semibold"
-                  disabled={isLoading}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                비밀번호
+              </label>
+              <div className="mt-1 relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="pl-10 pr-10"
+                  placeholder="••••••••"
+                />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {isLoading ? "계정 생성 중..." : "관리자 계정 생성"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
-          <div className="text-center mt-6 text-gray-600">
-            이미 계정이 있으신가요?{" "}
-            <Link href="/admin/login" className="text-purple-600 hover:underline font-semibold">
-              로그인
-            </Link>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                비밀번호 확인
+              </label>
+              <div className="mt-1 relative">
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="pl-10 pr-10"
+                  placeholder="••••••••"
+                />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <div>
+            <Button
+              type="submit"
+              disabled={isSubmitting || loading}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3"
+            >
+              {isSubmitting ? "회원가입 중..." : "관리자 회원가입"}
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              이미 계정이 있으신가요?{" "}
+              <Link href="/admin/login" className="text-purple-600 hover:text-purple-500 font-medium">
+                로그인하기
+              </Link>
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">관리자 계정 안내</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• 관리자 계정은 이벤트 관리, 알림 전송 등이 가능합니다</li>
+              <li>• 회원가입 후 이메일 인증이 필요합니다</li>
+              <li>• 관리자 권한은 개발팀에서 검토 후 승인됩니다</li>
+            </ul>
+          </div>
+        </form>
       </div>
     </div>
   )

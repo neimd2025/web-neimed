@@ -1,4 +1,3 @@
-import { businessCardAPI, userProfileAPI } from '@/lib/supabase/database'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,51 +7,62 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/home'
 
   if (code) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
       try {
+        // Use dynamic import for server-side functions
+        const { userProfileAPI } = await import('@/lib/supabase/database')
+        const { businessCardAPI } = await import('@/lib/supabase/database')
+
         // 사용자가 새로 생성된 경우에만 프로필 생성
         const existingProfile = await userProfileAPI.getUserProfile(data.user.id)
 
         if (!existingProfile) {
+          // 관리자 이메일 목록 (실제 운영 시에는 환경변수로 관리)
+          const adminEmails = [
+            'admin@named.com',
+            'simjaehyeong@gmail.com',
+            'test@admin.com'
+          ]
+
+          const userRole = adminEmails.includes(data.user.email?.toLowerCase() || '') ? 'admin' : 'user'
+
           // 사용자 프로필 생성
           await userProfileAPI.createUserProfile({
             id: data.user.id,
-            name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
+            full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
             email: data.user.email || '',
-            phone: '',
+            contact: '', // Changed from phone
             company: '',
-            position: '',
-            bio: '',
+            role: userRole, // role 설정
+            introduction: '', // Changed from bio
             mbti: '',
             keywords: [],
             profile_image_url: data.user.user_metadata?.avatar_url || null,
-            is_public: true
+            qr_code_url: null // Added qr_code_url
           })
 
           // 비즈니스 카드 생성
           await businessCardAPI.createBusinessCard({
             user_id: data.user.id,
-            name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
+            full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || '',
             email: data.user.email || '',
-            phone: '',
+            contact: '', // Changed from phone
             company: '',
-            position: '',
-            bio: '',
+            role: '', // Changed from position
+            introduction: '', // Changed from bio
             profile_image_url: data.user.user_metadata?.avatar_url || null,
             qr_code_url: null,
             is_public: true
           })
 
-          console.log('✅ OAuth 사용자 프로필과 비즈니스 카드가 자동으로 생성되었습니다.')
+          console.log(`✅ OAuth 사용자 프로필과 비즈니스 카드가 자동으로 생성되었습니다. (Role: ${userRole})`)
         }
       } catch (profileError) {
         console.error('⚠️ OAuth 프로필 생성 중 오류:', profileError)
-        // 프로필 생성 실패해도 로그인은 성공으로 처리
       }
-
       return NextResponse.redirect(new URL(next, origin))
     }
   }

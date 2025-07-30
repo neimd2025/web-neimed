@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Bookmark, Bell, User } from "lucide-react"
+import { Bell, Bookmark, Home, User } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -9,7 +9,9 @@ export default function MobileBottomNav() {
 
   // 온보딩, 웰컴, 로그인, 회원가입, 스플래시 페이지와 관리자 페이지에서는 하단 네비게이션 숨김
   const hideBottomNav =
-    ["/", "/onboarding", "/welcome", "/login", "/signup"].includes(pathname) || pathname.startsWith("/admin")
+    ["/", "/onboarding", "/welcome", "/login", "/signup"].includes(pathname) ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/profile/edit")
 
   if (hideBottomNav) {
     return null

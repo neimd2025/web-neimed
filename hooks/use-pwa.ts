@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface PWAInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -127,7 +127,6 @@ export const usePWA = () => {
       await registration.showNotification(title, {
         icon: '/icons/icon-192x192.png',
         badge: '/icons/icon-72x72.png',
-        vibrate: [100, 50, 100],
         ...options
       })
       return true
@@ -145,7 +144,7 @@ export const usePWA = () => {
     }
 
     try {
-      await registration.sync.register(tag)
+      await (registration as any).sync.register(tag)
       console.log('백그라운드 동기화 등록:', tag)
       return true
     } catch (error) {

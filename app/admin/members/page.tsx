@@ -6,26 +6,68 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useAdminStore } from "@/stores/admin-store"
+import { createClient } from "@/utils/supabase/client"
 import { Eye, Filter, MessageSquare, Search, Users } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+
+interface Member {
+  id: string
+  full_name: string
+  email: string
+  company: string
+  role: string
+  created_at: string
+  profile_image_url: string | null
+}
 
 export default function AdminMembersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("전체")
-  const { members } = useAdminStore()
+  const [members, setMembers] = useState<Member[]>([])
+  const [loading, setLoading] = useState(true)
+  const { adminUser } = useAdminStore()
+  const supabase = createClient()
+
+  useEffect(() => {
+    fetchMembers()
+  }, [])
+
+  const fetchMembers = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('회원 데이터 가져오기 오류:', error)
+        toast.error('회원 데이터를 불러오는데 실패했습니다.')
+        return
+      }
+
+      setMembers(data || [])
+    } catch (error) {
+      console.error('회원 데이터 가져오기 오류:', error)
+      toast.error('회원 데이터를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filters = ["전체", "활성", "비활성"]
 
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.company.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesFilter =
       activeFilter === "전체" ||
-      (activeFilter === "활성" && member.status === "active") ||
-      (activeFilter === "비활성" && member.status === "inactive")
+      (activeFilter === "활성" && member.role === "active") ||
+      (activeFilter === "비활성" && member.role === "inactive")
 
     return matchesSearch && matchesFilter
   })
@@ -81,60 +123,65 @@ export default function AdminMembersPage() {
 
         {/* Members List */}
         <div className="space-y-4">
-          {filteredMembers.map((member) => (
-            <Card key={member.id} className="border border-gray-200 hover:border-purple-300 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">{member.name.charAt(0)}</span>
+          {loading ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">회원 데이터를 불러오는 중입니다...</p>
+            </div>
+          ) : filteredMembers.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">검색 결과가 없습니다.</p>
+            </div>
+          ) : (
+            filteredMembers.map((member) => (
+              <Card key={member.id} className="border border-gray-200 hover:border-purple-300 transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1">
+                      <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">{member.full_name.charAt(0)}</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-bold text-gray-900">{member.full_name}</h3>
+                          <Badge
+                            variant={member.role === "active" ? "default" : "secondary"}
+                            className={`text-xs ${
+                              member.role === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {member.role === "active" ? "활성" : "비활성"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">{member.email}</p>
+                        <p className="text-sm text-gray-600">
+                          {member.company} / {member.role}
+                        </p>
+                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                          <span>가입일: {new Date(member.created_at).toLocaleDateString()}</span>
+                          <span>최근 활동: {member.role}</span>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                          <span>참가 이벤트: 0개</span>
+                          <span>프로필 조회: 0회</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-bold text-gray-900">{member.name}</h3>
-                        <Badge
-                          variant={member.status === "active" ? "default" : "secondary"}
-                          className={`text-xs ${
-                            member.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {member.status === "active" ? "활성" : "비활성"}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">{member.email}</p>
-                      <p className="text-sm text-gray-600">
-                        {member.company} / {member.job}
-                      </p>
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                        <span>가입일: {member.joinDate}</span>
-                        <span>최근 활동: {member.lastActive}</span>
-                      </div>
-                      <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
-                        <span>참가 이벤트: {member.eventsParticipated}개</span>
-                        <span>프로필 조회: {member.profileViews}회</span>
-                      </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm" className="p-2">
+                        <Eye className="h-4 w-4 text-gray-400" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="p-2">
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" className="p-2">
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="p-2">
-                      <MessageSquare className="h-4 w-4 text-gray-400" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-
-        {filteredMembers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">검색 결과가 없습니다.</p>
-          </div>
-        )}
       </div>
     </div>
   )

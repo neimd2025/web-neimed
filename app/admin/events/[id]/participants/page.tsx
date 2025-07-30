@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAdminStore } from "@/stores/admin-store"
 import { ArrowLeft, Download, Mail, QrCode, Search, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 interface Participant {
   id: string
@@ -19,15 +19,24 @@ interface Participant {
   qrCode?: string
 }
 
-export default function EventParticipantsPage({ params }: { params: { id: string } }) {
+export default function EventParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { adminUser } = useAdminStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "confirmed" | "pending" | "cancelled">("all")
+  const [eventId, setEventId] = useState<string>("")
+
+  useEffect(() => {
+    const getParams = async () => {
+      const resolvedParams = await params
+      setEventId(resolvedParams.id)
+    }
+    getParams()
+  }, [params])
 
   // 더미 이벤트 데이터
   const event = {
-    id: params.id,
+    id: eventId,
     title: "Neimd 네트워킹 데모 이벤트",
     date: "2025-01-25",
     location: "온라인",

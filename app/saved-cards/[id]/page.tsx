@@ -12,6 +12,23 @@ import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
+interface CollectedCard {
+  id: string
+  is_favorite: boolean
+  memo?: string
+  business_cards: {
+    full_name?: string
+    role?: string
+    company?: string
+    share_link?: string
+    introduction?: string
+    email?: string
+    contact?: string
+    age?: string
+    mbti?: string
+  }
+}
+
 export default function SavedCardDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -37,7 +54,7 @@ export default function SavedCardDetailPage() {
 
     try {
       await toggleFavorite(collection.id, !collection.is_favorite)
-      setCollection(prev => prev ? { ...prev, is_favorite: !prev.is_favorite } : null)
+      setCollection((prev: any) => prev ? { ...prev, is_favorite: !prev.is_favorite } : null)
       toast.success(collection.is_favorite ? '즐겨찾기에서 제거했습니다' : '즐겨찾기에 추가했습니다')
     } catch (error) {
       console.error('즐겨찾기 토글 오류:', error)

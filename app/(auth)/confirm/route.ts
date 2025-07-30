@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   // 코드 인증 방식에서는 이 라우트가 직접 호출되지 않음
   // 대신 /verify 페이지에서 코드를 입력받아 처리
   if (token_hash && type) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
       type: type as any,

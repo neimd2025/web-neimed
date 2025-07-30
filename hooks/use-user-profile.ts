@@ -24,7 +24,14 @@ export const useUserProfile = () => {
       setError(null)
 
       const userProfile = await userProfileAPI.getUserProfile(user.id)
-      setProfile(userProfile)
+
+      if (userProfile) {
+        setProfile(userProfile)
+      } else {
+        // 프로필이 없는 경우 null로 설정 (오류가 아님)
+        setProfile(null)
+        console.log('사용자 프로필이 아직 생성되지 않았습니다.')
+      }
     } catch (err) {
       console.error('Error loading user profile:', err)
       setError('프로필을 불러오는데 실패했습니다.')
@@ -73,11 +80,28 @@ export const useUserProfile = () => {
       setLoading(true)
       setError(null)
 
-      const updatedProfile = await userProfileAPI.updateUserProfile(user.id, updates)
+      // 서버 사이드 API 호출
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          updates: updates
+        })
+      })
 
-      if (updatedProfile) {
-        setProfile(updatedProfile)
-        return updatedProfile
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '프로필 업데이트에 실패했습니다.')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setProfile(result.data)
+        return result.data
       } else {
         throw new Error('프로필 업데이트에 실패했습니다.')
       }

@@ -1,77 +1,76 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { useAdminStore } from "@/stores/admin-store"
-import { ArrowLeft, Bell, Send, Users, Calendar, Search } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
+import { ArrowLeft, Megaphone, Plus, Search, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 interface Notification {
   id: string
   title: string
   message: string
-  targetType: "all" | "specific" | "event_participants"
-  targetEvent?: string
-  sentDate: string
-  deliveredCount: number
-  readCount: number
+  target_type: "all" | "specific" | "event_participants"
+  target_event?: string
+  sent_date?: string
+  delivered_count: number
+  read_count: number
   status: "draft" | "sent" | "scheduled"
+  created_at: string
+  updated_at: string
 }
 
 export default function AdminNotificationsPage() {
   const router = useRouter()
-  const { adminUser, sendPushNotification } = useAdminStore()
+  const { adminUser } = useAdminStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "draft" | "sent" | "scheduled">("all")
   const [isCreating, setIsCreating] = useState(false)
-
-  // 더미 알림 데이터
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "이벤트 참가 확정 안내",
-      message: "Neimd 네트워킹 데모 이벤트 참가가 확정되었습니다. 자세한 내용은 앱을 확인해주세요.",
-      targetType: "event_participants",
-      targetEvent: "Neimd 네트워킹 데모 이벤트",
-      sentDate: "2025-01-20",
-      deliveredCount: 45,
-      readCount: 38,
-      status: "sent"
-    },
-    {
-      id: "2",
-      title: "새로운 기능 업데이트",
-      message: "Neimd 앱에 새로운 기능이 추가되었습니다. 더 나은 네트워킹 경험을 제공합니다.",
-      targetType: "all",
-      sentDate: "2025-01-18",
-      deliveredCount: 156,
-      readCount: 89,
-      status: "sent"
-    },
-    {
-      id: "3",
-      title: "이벤트 시작 1시간 전",
-      message: "곧 이벤트가 시작됩니다. 준비해주세요!",
-      targetType: "event_participants",
-      targetEvent: "스타트업 네트워킹 밋업",
-      sentDate: "2025-01-25",
-      deliveredCount: 78,
-      readCount: 65,
-      status: "scheduled"
-    }
-  ])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
   const [newNotification, setNewNotification] = useState({
     title: "",
     message: "",
-    targetType: "all" as "all" | "specific" | "event_participants",
-    targetEvent: ""
+    target_type: "all" as "all" | "specific" | "event_participants",
+    target_event: ""
   })
+
+  // 알림 데이터 가져오기
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('알림 가져오기 오류:', error)
+          toast.error('알림을 불러오는데 실패했습니다.')
+          return
+        }
+
+        setNotifications(data || [])
+      } catch (error) {
+        console.error('알림 가져오기 오류:', error)
+        toast.error('알림을 불러오는데 실패했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+  }, [supabase])
 
   const getStatusBadge = (status: Notification["status"]) => {
     const statusConfig = {
@@ -92,33 +91,39 @@ export default function AdminNotificationsPage() {
 
   const handleSendNotification = async () => {
     if (!newNotification.title || !newNotification.message) {
-      alert("제목과 내용을 모두 입력해주세요.")
+      toast.error("제목과 내용을 모두 입력해주세요.")
       return
     }
 
     try {
-      // 실제로는 Supabase에 알림을 저장하고 전송해야 함
-      await new Promise(resolve => setTimeout(resolve, 1000)) // 시뮬레이션
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          title: newNotification.title,
+          message: newNotification.message,
+          target_type: newNotification.target_type,
+          target_event: newNotification.target_event || null,
+          sent_date: new Date().toISOString(),
+          delivered_count: 0,
+          read_count: 0,
+          status: "sent"
+        })
+        .select()
+        .single()
 
-      const notification: Notification = {
-        id: Date.now().toString(),
-        title: newNotification.title,
-        message: newNotification.message,
-        targetType: newNotification.targetType,
-        targetEvent: newNotification.targetEvent,
-        sentDate: new Date().toISOString().split("T")[0],
-        deliveredCount: 0,
-        readCount: 0,
-        status: "sent"
+      if (error) {
+        console.error('알림 전송 오류:', error)
+        toast.error('알림 전송에 실패했습니다.')
+        return
       }
 
-      setNotifications(prev => [notification, ...prev])
-      setNewNotification({ title: "", message: "", targetType: "all", targetEvent: "" })
+      setNotifications(prev => [data, ...prev])
+      setNewNotification({ title: "", message: "", target_type: "all", target_event: "" })
       setIsCreating(false)
-
-      console.log('알림 전송:', notification)
+      toast.success('알림이 성공적으로 전송되었습니다.')
     } catch (error) {
       console.error('알림 전송 오류:', error)
+      toast.error('알림 전송에 실패했습니다.')
     }
   }
 
@@ -126,10 +131,22 @@ export default function AdminNotificationsPage() {
     if (!confirm("정말로 이 알림을 삭제하시겠습니까?")) return
 
     try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+
+      if (error) {
+        console.error('알림 삭제 오류:', error)
+        toast.error('알림 삭제에 실패했습니다.')
+        return
+      }
+
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
-      console.log('알림 삭제:', notificationId)
+      toast.success('알림이 성공적으로 삭제되었습니다.')
     } catch (error) {
       console.error('알림 삭제 오류:', error)
+      toast.error('알림 삭제에 실패했습니다.')
     }
   }
 
@@ -148,7 +165,7 @@ export default function AdminNotificationsPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-              <Bell className="h-5 w-5 text-white" />
+              <Megaphone className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-xl font-bold text-gray-900">공지 전송</h1>
           </div>
@@ -156,7 +173,7 @@ export default function AdminNotificationsPage() {
             className="bg-purple-600 hover:bg-purple-700"
             onClick={() => setIsCreating(true)}
           >
-            <Send className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-2" />
             새 알림
           </Button>
         </div>
@@ -167,9 +184,6 @@ export default function AdminNotificationsPage() {
           {/* 새 알림 작성 */}
           {isCreating && (
             <Card>
-              <CardHeader>
-                <CardTitle>새 알림 작성</CardTitle>
-              </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">제목</Label>
@@ -197,10 +211,10 @@ export default function AdminNotificationsPage() {
                   <Label htmlFor="targetType">대상</Label>
                   <select
                     id="targetType"
-                    value={newNotification.targetType}
+                    value={newNotification.target_type}
                     onChange={(e) => setNewNotification(prev => ({
                       ...prev,
-                      targetType: e.target.value as "all" | "specific" | "event_participants"
+                      target_type: e.target.value as "all" | "specific" | "event_participants"
                     }))}
                     className="w-full border-2 border-gray-200 focus:border-purple-500 rounded-lg px-3 py-2 bg-white"
                   >
@@ -210,13 +224,13 @@ export default function AdminNotificationsPage() {
                   </select>
                 </div>
 
-                {newNotification.targetType === "event_participants" && (
+                {newNotification.target_type === "event_participants" && (
                   <div className="space-y-2">
                     <Label htmlFor="targetEvent">이벤트 선택</Label>
                     <select
                       id="targetEvent"
-                      value={newNotification.targetEvent}
-                      onChange={(e) => setNewNotification(prev => ({ ...prev, targetEvent: e.target.value }))}
+                      value={newNotification.target_event}
+                      onChange={(e) => setNewNotification(prev => ({ ...prev, target_event: e.target.value }))}
                       className="w-full border-2 border-gray-200 focus:border-purple-500 rounded-lg px-3 py-2 bg-white"
                     >
                       <option value="">이벤트를 선택하세요</option>
@@ -238,7 +252,7 @@ export default function AdminNotificationsPage() {
                     className="bg-purple-600 hover:bg-purple-700"
                     onClick={handleSendNotification}
                   >
-                    <Send className="h-4 w-4 mr-2" />
+                    <Megaphone className="h-4 w-4 mr-2" />
                     전송
                   </Button>
                 </div>
@@ -278,17 +292,23 @@ export default function AdminNotificationsPage() {
 
           {/* 알림 목록 */}
           <div className="space-y-4">
-            {filteredNotifications.length === 0 ? (
+            {loading ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">알림 목록을 불러오는 중입니다...</p>
+                </CardContent>
+              </Card>
+            ) : filteredNotifications.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Megaphone className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">알림이 없습니다</h3>
                   <p className="text-gray-600 mb-4">새로운 알림을 작성해보세요</p>
                   <Button
                     className="bg-purple-600 hover:bg-purple-700"
                     onClick={() => setIsCreating(true)}
                   >
-                    <Send className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                     새 알림
                   </Button>
                 </CardContent>
@@ -308,19 +328,17 @@ export default function AdminNotificationsPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
                           <div className="flex items-center gap-2 text-gray-600">
-                            <Users className="h-4 w-4" />
                             <span>
-                              {notification.targetType === "all" && "전체 사용자"}
-                              {notification.targetType === "event_participants" && `이벤트: ${notification.targetEvent}`}
-                              {notification.targetType === "specific" && "특정 사용자"}
+                              {notification.target_type === "all" && "전체 사용자"}
+                              {notification.target_type === "event_participants" && `이벤트: ${notification.target_event}`}
+                              {notification.target_type === "specific" && "특정 사용자"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-600">
-                            <Calendar className="h-4 w-4" />
-                            <span>{notification.sentDate}</span>
+                            <span>{notification.sent_date ? new Date(notification.sent_date).toLocaleDateString() : 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-600">
-                            <span>전송: {notification.deliveredCount} | 읽음: {notification.readCount}</span>
+                            <span>전송: {notification.delivered_count} | 읽음: {notification.read_count}</span>
                           </div>
                         </div>
                       </div>
@@ -332,6 +350,7 @@ export default function AdminNotificationsPage() {
                           className="text-red-600 border-red-200 hover:bg-red-50"
                           onClick={() => handleDeleteNotification(notification.id)}
                         >
+                          <Trash2 className="h-4 w-4 mr-1" />
                           삭제
                         </Button>
                       </div>

@@ -1,4 +1,6 @@
+import AuthInitializer from "@/components/auth-initializer"
 import MobileBottomNav from "@/components/mobile-bottom-nav"
+import { Toaster } from "@/components/ui/sonner"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import type React from "react"
@@ -32,14 +34,17 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Named" />
+        <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={`${inter.className} bg-gray-100 overflow-x-hidden`}>
         {/* 전체 앱 컨테이너 */}
         <div className="min-h-screen max-w-md mx-auto bg-white shadow-xl relative">
-          <main>{children}</main>
+          <AuthInitializer />
+          <main className="pb-20">{children}</main>
         </div>
         {/* 네비게이션바는 컨테이너 밖에서 하단 고정 */}
         <MobileBottomNav />
+        <Toaster />
       </body>
     </html>
   )

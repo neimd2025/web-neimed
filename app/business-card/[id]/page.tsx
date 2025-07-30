@@ -1,94 +1,119 @@
-'use client'
+"use client"
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, Share2 } from 'lucide-react'
-import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/use-auth"
+import { useBusinessCards } from "@/hooks/use-business-cards"
+import { createClient } from "@/utils/supabase/client"
+import { motion } from "framer-motion"
+import { ArrowLeft, Plus, Share2 } from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 export default function PublicBusinessCardPage() {
   const router = useRouter()
   const params = useParams()
   const cardId = params.id
+  const { user } = useAuth()
+  const { collectCard } = useBusinessCards()
   const [isCollected, setIsCollected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [card, setCard] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  // 실제로는 API에서 데이터를 가져와야 하지만, 여기서는 mock 데이터 사용
-  const businessCards = [
-    {
-      id: 1,
-      name: "정민철",
-      introduction: "혁신적인 제품 개발을 리드합니다.",
-      age: "33세",
-      company: "StartupXYZ",
-      position: "프로덕트 매니저",
-      mbti: "ENTJ",
-      personality: ["리더십", "전략적", "추진력"],
-      interests: ["제품기획", "애자일", "스타트업", "프로덕트", "기획", "스타트업"],
-      hobbies: ["축구", "독서", "팟캐스트"],
-      externalLink: {
-        name: "Medium",
-        url: "medium.com"
-      },
-      shareLink: "named.link/1s2v-jung-minchul",
-      avatar: "정",
-      avatarColor: "from-blue-500 to-purple-600"
-    },
-    {
-      id: 2,
-      name: "최은정",
-      introduction: "사용자 중심의 디자인으로 경험을 만듭니다.",
-      age: "28세",
-      company: "Design Studio",
-      position: "UX 디자이너",
-      mbti: "INFJ",
-      personality: ["창의적", "공감능력", "세심함"],
-      interests: ["디자인", "UX", "프로토타이핑"],
-      hobbies: ["그림", "전시회", "여행"],
-      externalLink: {
-        name: "Behance",
-        url: "behance.net"
-      },
-      shareLink: "named.link/1s2v-choi-eunjung",
-      avatar: "최",
-      avatarColor: "from-purple-500 to-pink-600"
-    },
-    {
-      id: 3,
-      name: "박준호",
-      introduction: "데이터로 인사이트를 발견하고 가치를 창출합니다.",
-      age: "35세",
-      company: "데이터 분석가",
-      position: "시니어 데이터 사이언티스트",
-      mbti: "INTJ",
-      personality: ["분석적", "논리적", "정확성"],
-      interests: ["데이터", "AI", "머신러닝"],
-      hobbies: ["독서", "수학", "프로그래밍"],
-      externalLink: {
-        name: "GitHub",
-        url: "github.com"
-      },
-      shareLink: "named.link/1s2v-park-junho",
-      avatar: "박",
-      avatarColor: "from-green-500 to-blue-600"
+  // 명함 데이터 가져오기
+  useEffect(() => {
+    const fetchBusinessCard = async () => {
+      if (!cardId) return
+
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('business_cards')
+          .select(`
+            *,
+            user_profiles!inner(
+              full_name,
+              contact,
+              company,
+              role,
+              mbti,
+              keywords,
+              introduction,
+              profile_image_url
+            )
+          `)
+          .eq('id', cardId)
+          .single()
+
+        if (error) {
+          console.error('명함 가져오기 오류:', error)
+          toast.error('명함을 불러오는데 실패했습니다.')
+          return
+        }
+
+        setCard(data)
+      } catch (error) {
+        console.error('명함 가져오기 오류:', error)
+        toast.error('명함을 불러오는데 실패했습니다.')
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
 
-  const card = businessCards.find((c) => c.id === Number.parseInt(cardId as string))
+    fetchBusinessCard()
+  }, [cardId, supabase])
+
+  // 이미 수집된 명함인지 확인
+  useEffect(() => {
+    const checkIfCollected = async () => {
+      if (!user || !cardId) return
+
+      try {
+        const { data, error } = await supabase
+          .from('collected_cards')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('business_card_id', cardId)
+          .single()
+
+        if (!error && data) {
+          setIsCollected(true)
+        }
+      } catch (error) {
+        // 수집되지 않은 경우
+        setIsCollected(false)
+      }
+    }
+
+    checkIfCollected()
+  }, [user, cardId, supabase])
 
   // 명함 수집 함수
   const handleCollectCard = async () => {
-    if (isCollected) return
+    if (!user || !card || isCollected) return
 
     setIsLoading(true)
 
     try {
-      // 실제로는 Supabase에 명함 수집 데이터를 저장해야 함
-      await new Promise(resolve => setTimeout(resolve, 1000)) // 시뮬레이션
+      const { error } = await supabase
+        .from('collected_cards')
+        .insert({
+          user_id: user.id,
+          business_card_id: card.id,
+          collected_at: new Date().toISOString()
+        })
+
+      if (error) {
+        console.error('명함 수집 오류:', error)
+        toast.error('명함 수집에 실패했습니다.')
+        return
+      }
 
       setIsCollected(true)
-      console.log('명함이 성공적으로 수집되었습니다:', card?.name)
+      toast.success('명함이 성공적으로 수집되었습니다!')
 
       // 성공 메시지 표시 후 수집된 명함 목록으로 이동
       setTimeout(() => {
@@ -97,6 +122,7 @@ export default function PublicBusinessCardPage() {
 
     } catch (error) {
       console.error('명함 수집 중 오류:', error)
+      toast.error('명함 수집에 실패했습니다.')
     } finally {
       setIsLoading(false)
     }
@@ -107,8 +133,8 @@ export default function PublicBusinessCardPage() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${card?.name}님의 명함`,
-          text: `${card?.name}님의 디지털 명함을 확인해보세요!`,
+          title: `${card?.full_name}님의 명함`,
+          text: `${card?.full_name}님의 디지털 명함을 확인해보세요!`,
           url: window.location.href
         })
       } else {
@@ -119,6 +145,25 @@ export default function PublicBusinessCardPage() {
     } catch (error) {
       console.error('공유 중 오류:', error)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" className="p-2" onClick={() => router.back()}>
+              <ArrowLeft className="w-4 h-4 text-gray-900" />
+            </Button>
+            <h1 className="text-xl font-bold text-gray-900">명함 상세</h1>
+            <div className="w-10"></div>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500">명함을 불러오는 중입니다...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!card) {
@@ -170,11 +215,11 @@ export default function PublicBusinessCardPage() {
               <div className={`w-24 h-24 bg-gradient-to-br ${card.avatarColor} rounded-full mx-auto mb-5 flex items-center justify-center`}>
                 <span className="text-white font-bold text-3xl">{card.avatar}</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{card.name}</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{card.full_name}</h2>
               <p className="text-gray-600 text-base mb-4">{card.introduction}</p>
               <div className="space-y-2 text-sm text-gray-500">
                 <p>{card.age}</p>
-                <p>{card.company} / {card.position}</p>
+                <p>{card.company} / {card.role}</p>
                 <p>MBTI: {card.mbti}</p>
               </div>
             </div>
@@ -185,9 +230,9 @@ export default function PublicBusinessCardPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {card.personality.map((trait, index) => (
+                  {card.keywords.map((keyword: string, index: number) => (
                     <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
-                      {trait}
+                      {keyword}
                     </Badge>
                   ))}
                 </div>
@@ -197,7 +242,7 @@ export default function PublicBusinessCardPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">관심사</h3>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {card.interests.map((interest, index) => (
+                  {card.interests.map((interest: string, index: number) => (
                     <Badge
                       key={index}
                       variant={index < 3 ? "default" : "outline"}
@@ -213,7 +258,7 @@ export default function PublicBusinessCardPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">취미</h3>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {card.hobbies.map((hobby, index) => (
+                  {card.hobbies.map((hobby: string, index: number) => (
                     <Badge key={index} variant="outline" className="border-gray-200 px-3 py-1">
                       {hobby}
                     </Badge>
@@ -237,7 +282,7 @@ export default function PublicBusinessCardPage() {
       </div>
 
       {/* 하단 고정 버튼 */}
-      <div className="fixed bottom-0 left-0 right-0 px-5 py-6 bg-white border-t border-gray-200">
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md px-5 py-6 bg-white border-t border-gray-200 shadow-lg">
         <Button
           className={`w-full h-15 font-semibold text-lg ${
             isCollected

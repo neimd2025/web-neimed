@@ -49,7 +49,7 @@ export default function MyPage() {
           </Link>
           <h1 className="text-lg font-semibold text-gray-900">마이페이지</h1>
         </div>
-      </div>
+        </div>
 
       <div className="px-5 py-6 space-y-6">
         {/* 사용자 정보 */}
@@ -61,14 +61,14 @@ export default function MyPage() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
                 <User className="w-8 h-8 text-white" />
-              </div>
+                      </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{user.email}</h3>
                 <p className="text-sm text-gray-600">가입일: {new Date(user.created_at).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
         {/* 메뉴 */}
         <div className="space-y-4">
@@ -81,7 +81,7 @@ export default function MyPage() {
                 </div>
               </CardContent>
             </Card>
-          </Link>
+                </Link>
 
           <Button
             onClick={handleLogout}

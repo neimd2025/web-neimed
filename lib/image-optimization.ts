@@ -145,7 +145,9 @@ export class ImageCache {
     if (this.cache.size >= this.maxSize) {
       // LRU 캐시 정책: 가장 오래된 항목 제거
       const firstKey = this.cache.keys().next().value
-      this.cache.delete(firstKey)
+      if (firstKey) {
+        this.cache.delete(firstKey)
+      }
     }
     this.cache.set(key, value)
   }
