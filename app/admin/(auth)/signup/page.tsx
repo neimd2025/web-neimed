@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/stores/auth-store"
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, Lock, Mail, User } from "lucide-react"
+import { Check, Eye, EyeOff, Lock, Mail, User, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from 'react-hook-form'
 import { toast } from "sonner"
 import { z } from 'zod'
@@ -35,30 +35,118 @@ export default function AdminSignupPage() {
   const [showVerification, setShowVerification] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
   const [signupData, setSignupData] = useState<any>(null)
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'upgrade'>('idle')
+  const [emailMessage, setEmailMessage] = useState('')
+  const [isUpgradeMode, setIsUpgradeMode] = useState(false)
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors }
   } = useForm<AdminSignupFormData>({
     resolver: zodResolver(adminSignupSchema)
   })
 
+  const watchedEmail = watch('email')
+
+  // 이메일 중복 확인
+  const checkEmailAvailability = async (email: string) => {
+    if (!email || !email.includes('@')) return
+
+    setEmailStatus('checking')
+    setEmailMessage('')
+
+    try {
+      const response = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, isAdmin: true })
+      })
+
+      const data = await response.json()
+
+      if (data.isTaken) {
+        setEmailStatus('taken')
+        setEmailMessage(data.message)
+      } else if (data.canUpgrade) {
+        setEmailStatus('upgrade')
+        setEmailMessage(data.message)
+      } else {
+        setEmailStatus('available')
+        setEmailMessage(data.message)
+      }
+    } catch (error) {
+      console.error('이메일 확인 오류:', error)
+      setEmailStatus('idle')
+      setEmailMessage('이메일 확인 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 이메일 변경 시 중복 확인
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (watchedEmail && watchedEmail.includes('@')) {
+        checkEmailAvailability(watchedEmail)
+      } else {
+        setEmailStatus('idle')
+        setEmailMessage('')
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [watchedEmail])
+
   const onSubmit = async (data: AdminSignupFormData) => {
+    if (emailStatus === 'taken') {
+      toast.error('이미 관리자로 가입된 이메일입니다.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      const { data: result, error } = await signUpWithEmail(data.email, data.password, data.name, true)
+      if (emailStatus === 'upgrade') {
+        // 기존 사용자를 관리자로 업그레이드
+        const response = await fetch('/api/auth/upgrade-to-admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: data.email,
+            password: data.password,
+            name: data.name
+          })
+        })
 
-      if (error) {
-        toast.error(error.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
-        return
-      }
+        const result = await response.json()
 
-      if (result?.user) {
-        setSignupData(result)
-        setShowVerification(true)
-        toast.success('이메일로 인증 코드를 발송했습니다. 이메일을 확인해주세요.')
+        if (!response.ok) {
+          toast.error(result.error || '업그레이드에 실패했습니다.')
+          return
+        }
+
+        toast.success('성공적으로 관리자로 업그레이드되었습니다!')
+        router.push('/admin/login')
+      } else {
+        // 새 관리자 회원가입
+        const { data: result, error } = await signUpWithEmail(data.email, data.password, data.name, true)
+
+        if (error) {
+          toast.error(error.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
+          return
+        }
+
+        if (result?.user) {
+          setSignupData(result)
+          setShowVerification(true)
+          toast.success('이메일로 인증 코드를 발송했습니다. 이메일을 확인해주세요.', {
+            description: '💡 이메일이 오지 않는다면 스팸함을 확인해주세요.'
+          })
+        }
       }
     } catch (error) {
       console.error('회원가입 오류:', error)
@@ -78,7 +166,7 @@ export default function AdminSignupPage() {
       // 별도의 인증 코드 확인 API가 필요할 수 있습니다
 
       toast.success('관리자 계정이 성공적으로 생성되었습니다!')
-      router.push('/admin/login')
+              router.push('/admin/login')
     } catch (error) {
       console.error('인증 오류:', error)
       toast.error('인증 코드가 올바르지 않습니다.')
@@ -137,12 +225,40 @@ export default function AdminSignupPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="admin@named.com"
-                    className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
+                    className={`pl-10 pr-10 ${errors.email ? 'border-red-500' : ''} ${
+                      emailStatus === 'available' ? 'border-green-500' :
+                      emailStatus === 'upgrade' ? 'border-blue-500' :
+                      emailStatus === 'taken' ? 'border-red-500' : ''
+                    }`}
                   />
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  {emailStatus === 'checking' && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                    </div>
+                  )}
+                  {emailStatus === 'available' && (
+                    <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
+                  )}
+                  {emailStatus === 'upgrade' && (
+                    <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
+                  )}
+                  {emailStatus === 'taken' && (
+                    <X className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-red-500" />
+                  )}
                 </div>
                 {errors.email && (
                   <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                )}
+                {emailMessage && (
+                  <p className={`text-sm mt-1 ${
+                    emailStatus === 'available' ? 'text-green-600' :
+                    emailStatus === 'upgrade' ? 'text-blue-600' :
+                    emailStatus === 'taken' ? 'text-red-600' :
+                    'text-gray-600'
+                  }`}>
+                    {emailMessage}
+                  </p>
                 )}
               </div>
 
@@ -203,9 +319,13 @@ export default function AdminSignupPage() {
               <Button
                 type="submit"
                 className="w-full bg-purple-600 hover:bg-purple-700"
-                disabled={isSubmitting}
+                disabled={isSubmitting || emailStatus === 'taken' || emailStatus === 'checking'}
               >
-                {isSubmitting ? '회원가입 중...' : '관리자 회원가입'}
+                {isSubmitting ? (emailStatus === 'upgrade' ? '업그레이드 중...' : '회원가입 중...') :
+                 emailStatus === 'taken' ? '이미 관리자로 가입됨' :
+                 emailStatus === 'checking' ? '이메일 확인 중...' :
+                 emailStatus === 'upgrade' ? '관리자로 업그레이드' :
+                 '관리자 회원가입'}
               </Button>
             </div>
 

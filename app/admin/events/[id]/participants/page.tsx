@@ -146,7 +146,7 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
   }
 
   if (!adminUser) {
-    router.push('/admin/login')
+            router.push('/admin/login')
     return null
   }
 

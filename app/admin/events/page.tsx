@@ -113,7 +113,7 @@ export default function AdminEventsPage() {
   }
 
   if (!adminUser) {
-    router.push('/admin/login')
+            router.push('/admin/login')
     return null
   }
 

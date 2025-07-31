@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
+    const { email, isAdmin = false } = await request.json()
 
     if (!email) {
       return NextResponse.json(
@@ -30,15 +30,47 @@ export async function POST(request: NextRequest) {
     // user_profiles 테이블에서 이메일 존재 여부 확인
     const { data: existingProfile, error } = await supabase
       .from('user_profiles')
-      .select('email')
+      .select('email, role_id')
       .eq('email', email)
       .single()
 
-    const isTaken = !!existingProfile
+    if (existingProfile) {
+      // 관리자 회원가입인 경우 기존 사용자의 역할 확인
+      if (isAdmin) {
+        // roles 테이블에서 관리자 역할 ID 확인
+        const { data: adminRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'admin')
+          .single()
 
+        if (adminRole && existingProfile.role_id === adminRole.id) {
+          return NextResponse.json({
+            isTaken: true,
+            message: '이미 관리자로 가입된 이메일입니다.'
+          })
+        } else {
+          // 일반 사용자이므로 관리자로 업그레이드 가능
+          return NextResponse.json({
+            isTaken: false,
+            canUpgrade: true,
+            message: '기존 사용자입니다. 관리자로 업그레이드할 수 있습니다.'
+          })
+        }
+      } else {
+        // 일반 회원가입인 경우
+        return NextResponse.json({
+          isTaken: true,
+          message: '이미 가입된 이메일입니다.'
+        })
+      }
+    }
+
+    // 새 사용자인 경우
     return NextResponse.json({
-      isTaken,
-      message: isTaken ? '이미 가입된 이메일입니다.' : '사용 가능한 이메일입니다.'
+      isTaken: false,
+      canUpgrade: false,
+      message: '사용 가능한 이메일입니다.'
     })
 
   } catch (error) {

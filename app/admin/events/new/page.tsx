@@ -53,7 +53,7 @@ export default function NewEventPage() {
 
   // 관리자 권한 확인
   if (!adminUser) {
-    router.push('/admin/login')
+            router.push('/admin/login')
     return null
   }
 

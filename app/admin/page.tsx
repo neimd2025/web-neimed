@@ -9,14 +9,13 @@ export default function AdminStartPage() {
   const { adminUser, adminLoading, adminInitialized } = useAuthStore()
 
   useEffect(() => {
+    // 로딩이 완료되고 초기화가 되었을 때만 리다이렉트 실행
     if (!adminLoading && adminInitialized) {
       if (adminUser) {
         // 관리자가 로그인되어 있으면 대시보드로 리다이렉트
-        router.push('/admin/dashboard')
-      } else {
-        // 관리자가 아니면 로그인 페이지로 리다이렉트
-        router.push('/admin/login')
+        router.replace('/admin/dashboard')
       }
+      // 미들웨어에서 이미 인증되지 않은 사용자는 처리하므로 여기서는 대시보드로만 리다이렉트
     }
   }, [adminUser, adminLoading, adminInitialized, router])
 
@@ -32,12 +31,12 @@ export default function AdminStartPage() {
     )
   }
 
-  // 리다이렉트 중이면 로딩 화면 표시
+  // 미들웨어에서 이미 인증을 처리했으므로 대시보드로 리다이렉트
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">리다이렉트 중...</p>
+        <p className="mt-4 text-gray-600">대시보드로 이동 중...</p>
       </div>
     </div>
   )

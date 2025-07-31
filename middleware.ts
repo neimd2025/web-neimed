@@ -18,6 +18,35 @@ export async function middleware(req: NextRequest) {
   const authRoutes = ['/login', '/signup', '/verify']
   const isAuthRoute = authRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
+  // Admin 관련 경로들
+  const adminRoutes = ['/admin']
+  const adminAuthRoutes = ['/admin/login', '/admin/signup']
+  const isAdminRoute = adminRoutes.some(route => req.nextUrl.pathname.startsWith(route))
+  const isAdminAuthRoute = adminAuthRoutes.some(route => req.nextUrl.pathname === route)
+
+  // Admin 경로 처리
+  if (isAdminRoute && !isAdminAuthRoute) {
+    // Admin 페이지에 접근하려면 로그인이 필요
+    if (!session) {
+      return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+
+    // Admin 권한 확인 (user_metadata에서 isAdmin 확인)
+    const isAdmin = session.user?.user_metadata?.isAdmin === true
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+  }
+
+  // Admin 인증 페이지에서 이미 로그인된 관리자 처리
+  if (isAdminAuthRoute && session) {
+    const isAdmin = session.user?.user_metadata?.isAdmin === true
+    if (isAdmin) {
+      return NextResponse.redirect(new URL('/admin/dashboard', req.url))
+    }
+  }
+
+  // 일반 사용자 인증 처리
   if (isProtectedRoute && !session) {
     // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
     return NextResponse.redirect(new URL('/login', req.url))
