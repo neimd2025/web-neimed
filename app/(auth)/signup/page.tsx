@@ -62,12 +62,41 @@ export default function SignupPage() {
 
       setEmailStatus('checking')
 
-      // 실제로는 Supabase에서 이메일 중복 확인을 해야 합니다
-      // 현재는 시뮬레이션
-      setTimeout(() => {
-        const isTaken = watchedEmail.includes('test') || watchedEmail.includes('admin')
-        setEmailStatus(isTaken ? 'taken' : 'available')
-      }, 1000)
+      try {
+        // 이메일 형식 검증
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(watchedEmail)) {
+          setEmailStatus('idle')
+          return
+        }
+
+        // API를 통해 이메일 중복 확인
+        const response = await fetch('/api/auth/check-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: watchedEmail }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          if (data.isTaken) {
+            console.log('⚠️ 이미 가입된 이메일:', watchedEmail)
+            setEmailStatus('taken')
+          } else {
+            console.log('✅ 사용 가능한 이메일:', watchedEmail)
+            setEmailStatus('available')
+          }
+        } else {
+          console.error('❌ 이메일 중복 확인 실패:', data.error)
+          setEmailStatus('idle')
+        }
+      } catch (error) {
+        console.error('❌ 이메일 중복 확인 중 오류:', error)
+        setEmailStatus('idle')
+      }
     }
 
     const timeoutId = setTimeout(checkEmailAvailability, 500)
@@ -89,6 +118,8 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
+      console.log('🔍 회원가입 시도:', { email: data.email, name: data.name })
+
       const { data: result, error } = await signUpWithEmail(data.email, data.password, data.name, false)
 
       if (error) {
@@ -99,7 +130,9 @@ export default function SignupPage() {
 
       if (result?.user) {
         console.log('✅ 회원가입 성공:', result.user.email)
-        toast.success('회원가입이 완료되었습니다! 이메일 인증을 완료해주세요.')
+        toast.success('회원가입이 완료되었습니다! 이메일 인증을 완료해주세요.', {
+          description: '인증 메일이 발송되었습니다. 스팸함도 확인해주세요.'
+        })
 
         // 인증 코드 페이지로 이동
         router.push(`/verify?email=${encodeURIComponent(data.email)}`)
@@ -179,7 +212,12 @@ export default function SignupPage() {
                 <p className="text-green-500 text-sm">사용 가능한 이메일입니다</p>
               )}
               {emailStatus === 'taken' && (
-                <p className="text-red-500 text-sm">이미 사용 중인 이메일입니다</p>
+                <div className="text-red-500 text-sm">
+                  <p>이미 사용 중인 이메일입니다</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    로그인을 시도하거나 다른 이메일을 사용해주세요
+                  </p>
+                </div>
               )}
             </div>
 
@@ -234,7 +272,9 @@ export default function SignupPage() {
               className="w-full bg-purple-600 hover:bg-purple-700"
               disabled={loading || isSubmitting || emailStatus === 'checking' || emailStatus === 'taken'}
             >
-              {loading ? '회원가입 중...' : '회원가입'}
+              {loading ? '회원가입 중...' :
+               emailStatus === 'taken' ? '이미 가입된 이메일' :
+               emailStatus === 'checking' ? '이메일 확인 중...' : '회원가입'}
             </Button>
           </form>
 
@@ -245,6 +285,16 @@ export default function SignupPage() {
                 로그인
               </Link>
             </p>
+            {emailStatus === 'taken' && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  💡 이미 가입된 이메일이네요!{' '}
+                  <Link href="/login" className="font-medium underline">
+                    로그인 페이지로 이동
+                  </Link>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

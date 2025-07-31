@@ -24,6 +24,7 @@ export default function VerifyPage() {
     const emailParam = searchParams.get('email')
     if (emailParam) {
       setEmail(emailParam)
+      console.log('📧 인증 페이지 로드:', emailParam)
     }
   }, [searchParams])
 
@@ -37,6 +38,8 @@ export default function VerifyPage() {
 
     setLoading(true)
     try {
+      console.log('🔍 인증 시도:', { email, code: code.substring(0, 2) + '****' })
+
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: code,
@@ -44,6 +47,7 @@ export default function VerifyPage() {
       })
 
       if (error) {
+        console.error('❌ 인증 실패:', error)
         toast.error('인증 코드가 올바르지 않습니다. 다시 확인해주세요.')
       } else if (data.user) {
         // 인증 완료 후 프로필과 비즈니스 카드 생성
@@ -107,6 +111,7 @@ export default function VerifyPage() {
           console.error('⚠️ 프로필/카드 생성 중 오류:', profileError)
         }
 
+        console.log('✅ 이메일 인증 완료:', data.user.email)
         toast.success('이메일 인증이 완료되었습니다!')
         // 인증 완료 후 바로 홈으로 이동
         router.push('/home')
@@ -126,17 +131,22 @@ export default function VerifyPage() {
 
     setResending(true)
     try {
+      console.log('📧 인증 코드 재전송 시도:', email)
+
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email
       })
 
       if (error) {
-        toast.error('인증 코드 재전송에 실패했습니다.')
+        console.error('❌ 인증 코드 재전송 실패:', error)
+        toast.error('인증 코드 재전송에 실패했습니다. 잠시 후 다시 시도해주세요.')
       } else {
-        toast.success('새로운 인증 코드를 이메일로 전송했습니다.')
+        console.log('✅ 인증 코드 재전송 성공')
+        toast.success('새로운 인증 코드를 이메일로 전송했습니다. 스팸함도 확인해주세요.')
       }
     } catch (error) {
+      console.error('❌ 인증 코드 재전송 중 오류:', error)
       toast.error('인증 코드 재전송 중 오류가 발생했습니다.')
     } finally {
       setResending(false)
@@ -160,6 +170,11 @@ export default function VerifyPage() {
           <p className="text-gray-600">
             {email ? `${email}로 전송된 6자리 인증 코드를 입력해주세요.` : '이메일 인증이 필요합니다.'}
           </p>
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              💡 이메일이 오지 않는다면 스팸함을 확인해주세요.
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <form onSubmit={handleVerify} className="space-y-4">
@@ -216,8 +231,16 @@ export default function VerifyPage() {
               )}
             </Button>
 
-            <div className="text-center text-sm">
-              <Link href="/login" className="text-blue-600 hover:underline">
+            <div className="text-center text-sm space-y-2">
+              <p className="text-gray-500 text-xs">
+                이메일이 오지 않는다면 다음을 확인해주세요:
+              </p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• 스팸함/정크메일함 확인</li>
+                <li>• 이메일 주소가 정확한지 확인</li>
+                <li>• 몇 분 후 다시 시도</li>
+              </ul>
+              <Link href="/login" className="text-blue-600 hover:underline block mt-2">
                 로그인 페이지로 돌아가기
               </Link>
             </div>

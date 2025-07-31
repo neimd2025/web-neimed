@@ -154,7 +154,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          name: name || '',
+          isAdmin: isAdmin || false
+        }
       }
+    })
+
+    console.log('📧 회원가입 결과:', {
+      success: !error,
+      user: data?.user?.email,
+      error: error?.message
     })
 
     if (error) {
@@ -184,10 +194,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // 회원가입 성공 시 이메일 인증 대기
     if (!error && data.user) {
-      // 이메일 인증이 완료된 후에 프로필과 비즈니스 카드를 생성하도록 변경
-      // 인증 완료는 /verify 페이지에서 처리됨
       console.log('✅ 회원가입 성공. 이메일 인증을 완료해주세요.')
-      // 세션을 설정하지 않음 - 인증 완료 후에 설정됨
+      console.log('📧 이메일 인증 메일이 발송되었습니다. 스팸함도 확인해주세요.')
     }
 
     return { data, error }
