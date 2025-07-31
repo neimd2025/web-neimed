@@ -1,0 +1,49 @@
+{
+  "projectName": "web-named",
+  "description": "Next.js 기반 명함 관리 웹 애플리케이션",
+  "mcpServers": {
+    "supabase-named": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_3349ab8baf8cc6ce42db67bfeecc3dc762ca7097",
+        "--project-ref",
+        "your-project-ref"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_3349ab8baf8cc6ce42db67bfeecc3dc762ca7097"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@context7/mcp-server@latest"
+      ]
+    },
+    "figma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@figma/mcp-server@latest"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp-server@latest"
+      ]
+    }
+  },
+  "projectInstructions": [
+    "이 프로젝트는 Next.js 15와 Supabase를 사용한 명함 관리 시스템입니다.",
+    "TypeScript를 사용하며, Tailwind CSS로 스타일링합니다.",
+    "Supabase MCP 서버를 통해 데이터베이스 작업을 수행할 수 있습니다.",
+    "Context7 MCP 서버를 통해 최신 문서와 정보를 검색할 수 있습니다.",
+    "Figma MCP 서버를 통해 디자인 작업을 수행할 수 있습니다.",
+    "Playwright MCP 서버를 통해 브라우저 자동화를 수행할 수 있습니다."
+  ]
+}
