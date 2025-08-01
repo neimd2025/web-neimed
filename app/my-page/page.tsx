@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function MyPage() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, adminUser } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -62,10 +62,13 @@ export default function MyPage() {
               <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
                 <User className="w-8 h-8 text-white" />
                       </div>
-              <div>
+                            <div>
                 <h3 className="font-semibold text-gray-900">{user.email}</h3>
                 <p className="text-sm text-gray-600">가입일: {new Date(user.created_at).toLocaleDateString()}</p>
-                    </div>
+                {adminUser && (
+                  <p className="text-sm text-purple-600 font-medium">관리자</p>
+                )}
+              </div>
                   </div>
                 </CardContent>
               </Card>

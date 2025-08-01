@@ -90,6 +90,21 @@ export const userProfileAPI = {
       }
     }
 
+    // keywords 필드가 빈 배열인 경우 null로 설정
+    if (cleanedUpdates.keywords && Array.isArray(cleanedUpdates.keywords) && cleanedUpdates.keywords.length === 0) {
+      console.log('빈 keywords 배열을 null로 설정')
+      cleanedUpdates.keywords = null
+    }
+
+    // 빈 문자열 필드들을 null로 설정
+    const fieldsToNullify = ['company', 'contact', 'introduction', 'mbti']
+    fieldsToNullify.forEach(field => {
+      if (cleanedUpdates[field as keyof typeof cleanedUpdates] === '') {
+        console.log(`${field} 빈 문자열을 null로 설정`)
+        ;(cleanedUpdates as any)[field] = null
+      }
+    })
+
     console.log('정리된 업데이트 데이터:', cleanedUpdates)
 
     const { data, error } = await supabase
@@ -101,6 +116,12 @@ export const userProfileAPI = {
 
     if (error) {
       console.error('Error updating user profile:', error)
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       return null
     }
 

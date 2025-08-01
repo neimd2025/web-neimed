@@ -97,18 +97,21 @@ export default function EditProfilePage() {
     }
 
     try {
-      await updateProfile({
+      // 빈 문자열들을 null로 변환
+      const cleanedData = {
         full_name: data.full_name,
-        birth_date: data.birth_date || '',
-        affiliation: data.affiliation,
-        company: data.company,
-        role: data.role,
-        contact: data.contact,
-        mbti: data.mbti || '',
-        keywords: data.keywords,
-        introduction: data.introduction,
-        external_link: data.external_link || ''
-      })
+        birth_date: data.birth_date || null,
+        affiliation: data.affiliation || null,
+        company: data.company || null,
+        role: data.role || null,
+        contact: data.contact || null,
+        mbti: data.mbti || null,
+        keywords: data.keywords.length > 0 ? data.keywords : null,
+        introduction: data.introduction || null,
+        external_link: data.external_link || null
+      }
+
+      await updateProfile(cleanedData)
 
       toast.success('프로필이 성공적으로 수정되었습니다!')
       router.push('/my-page')

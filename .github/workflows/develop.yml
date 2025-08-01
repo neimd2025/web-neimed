@@ -1,0 +1,29 @@
+name: Deploy pluck-landing
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - develop
+
+jobs:
+  deployment:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Preview' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          if [ "$BRANCH" = "main" ]; then
+            curl -X POST "${{ secrets.VERCEL_DEPLOY_MAIN_HOOKS }}"
+          elif [ "$BRANCH" = "staging" ]; then
+            curl -X POST "${{ secrets.VERCEL_DEPLOY_STAGING_HOOKS }}"
+          elif [ "$BRANCH" = "develop" ]; then
+            curl -X POST "${{ secrets.VERCEL_DEPLOY_DEVELOP_HOOKS }}"
+          fi

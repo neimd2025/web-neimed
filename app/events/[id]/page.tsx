@@ -85,7 +85,7 @@ export default function EventDetailPage() {
         .from('event_participants')
         .select(`
           *,
-          user:profiles(full_name, email)
+          user:user_profiles(full_name, email)
         `)
         .eq('event_id', eventId)
         .order('joined_at', { ascending: false })

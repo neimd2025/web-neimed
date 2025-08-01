@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuthStore } from "@/stores/auth-store"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Download, Mail, QrCode, Search, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -34,6 +35,13 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
     getParams()
   }, [params])
 
+  // eventId가 변경될 때 참가자 데이터 로드
+  useEffect(() => {
+    if (eventId) {
+      loadParticipants(eventId)
+    }
+  }, [eventId])
+
   // 더미 이벤트 데이터
   const event = {
     id: eventId,
@@ -43,47 +51,46 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
     eventCode: "DEMO01"
   }
 
-  // 더미 참가자 데이터
-  const [participants, setParticipants] = useState<Participant[]>([
-    {
-      id: "1",
-      name: "허수정",
-      email: "heosujeong@neimd.com",
-      company: "Named",
-      job: "기획자",
-      joinDate: "2025-01-15",
-      status: "confirmed",
-      qrCode: "QR001"
-    },
-    {
-      id: "2",
-      name: "김철수",
-      email: "chulsoo@example.com",
-      company: "스타트업XYZ",
-      job: "개발자",
-      joinDate: "2025-01-16",
-      status: "confirmed",
-      qrCode: "QR002"
-    },
-    {
-      id: "3",
-      name: "이영희",
-      email: "younghee@example.com",
-      company: "디자인스튜디오",
-      job: "UX 디자이너",
-      joinDate: "2025-01-17",
-      status: "pending"
-    },
-    {
-      id: "4",
-      name: "박민수",
-      email: "minsu@example.com",
-      company: "테크컴퍼니",
-      job: "마케터",
-      joinDate: "2025-01-18",
-      status: "cancelled"
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // 실제 참가자 데이터 로드
+  const loadParticipants = async (eventId: string) => {
+    try {
+      setLoading(true)
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select(`
+          *,
+          user:user_profiles(full_name, email, company, role)
+        `)
+        .eq('event_id', eventId)
+        .order('joined_at', { ascending: false })
+
+      if (error) {
+        console.error('참가자 목록 로드 오류:', error)
+        return
+      }
+
+      // 데이터 형식 변환
+      const formattedParticipants: Participant[] = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.user?.full_name || '알 수 없음',
+        email: item.user?.email || '알 수 없음',
+        company: item.user?.company || '알 수 없음',
+        job: item.user?.role || '알 수 없음',
+        joinDate: new Date(item.joined_at).toLocaleDateString('ko-KR'),
+        status: item.status as "confirmed" | "pending" | "cancelled"
+      }))
+
+      setParticipants(formattedParticipants)
+    } catch (error) {
+      console.error('참가자 목록 로드 오류:', error)
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
 
   const getStatusBadge = (status: Participant["status"]) => {
     const statusConfig = {
@@ -252,6 +259,14 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
               <CardTitle>참가자 목록</CardTitle>
             </CardHeader>
             <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">참가자 목록을 불러오는 중...</p>
+                  </div>
+                </div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -333,6 +348,7 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
                   </tbody>
                 </table>
               </div>
+              )}
             </CardContent>
           </Card>
         </div>
