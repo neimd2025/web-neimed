@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { useEvents } from '@/hooks/use-events'
+import { eventAPI } from '@/lib/supabase/database'
 import { logError } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User, Users } from 'lucide-react'
@@ -41,7 +41,6 @@ export default function EventDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
-  const { loadEvent } = useEvents()
   const [event, setEvent] = useState<Event | null>(null)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +53,7 @@ export default function EventDetailPage() {
 
       try {
         setLoading(true)
-        const eventData = await loadEvent(params.id as string)
+        const eventData = await eventAPI.getEvent(params.id as string)
         setEvent(eventData)
 
         // 참가자 목록 로드
@@ -73,7 +72,7 @@ export default function EventDetailPage() {
     }
 
     fetchEventData()
-  }, [params.id, loadEvent, user])
+  }, [params.id, user])
 
   const loadParticipants = useCallback(async (eventId: string) => {
     try {
@@ -184,7 +183,7 @@ export default function EventDetailPage() {
       setIsParticipant(true)
 
       // 이벤트 정보와 참가자 목록 새로고침
-      const updatedEvent = await loadEvent(event.id)
+      const updatedEvent = await eventAPI.getEvent(event.id)
       setEvent(updatedEvent)
       await loadParticipants(event.id)
 
