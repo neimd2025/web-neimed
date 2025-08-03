@@ -405,6 +405,106 @@ export const businessCardAPI = {
   }
 }
 
+// 이벤트 참가자 관련 함수들
+export const eventParticipantAPI = {
+  // 이벤트 참가자 목록 가져오기
+  async getEventParticipants(eventId: string): Promise<any[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('event_participants')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('joined_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching event participants:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // 사용자의 이벤트 참가 여부 확인
+  async getUserParticipation(eventId: string, userId: string): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('event_participants')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching user participation:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 이벤트 참가
+  async joinEvent(eventId: string, userId: string): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('event_participants')
+      .insert({
+        event_id: eventId,
+        user_id: userId,
+        status: 'confirmed',
+        joined_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error joining event:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 이벤트 참가 취소
+  async leaveEvent(eventId: string, userId: string): Promise<boolean> {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('event_participants')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error leaving event:', error)
+      return false
+    }
+
+    return true
+  },
+
+  // 참가 상태 업데이트
+  async updateParticipationStatus(participationId: string, status: string): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('event_participants')
+      .update({ status })
+      .eq('id', participationId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating participation status:', error)
+      return null
+    }
+
+    return data
+  }
+}
+
 // 수집된 명함 관련 함수들
 export const collectedCardAPI = {
   // 사용자가 수집한 명함 목록 가져오기
@@ -501,6 +601,41 @@ export const notificationAPI = {
     return data || []
   },
 
+  // 모든 알림 가져오기 (관리자용)
+  async getAllNotifications(): Promise<Notification[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching all notifications:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // 특정 알림 가져오기
+  async getNotification(notificationId: string): Promise<Notification | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('id', notificationId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching notification:', error)
+      return null
+    }
+
+    return data
+  },
+
   // 알림 생성
   async createNotification(notification: NotificationInsert): Promise<Notification | null> {
     const supabase = createClient()
@@ -517,6 +652,42 @@ export const notificationAPI = {
     }
 
     return data
+  },
+
+  // 알림 업데이트
+  async updateNotification(notificationId: string, updates: Partial<Notification>): Promise<Notification | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update(updates)
+      .eq('id', notificationId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating notification:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 알림 삭제
+  async deleteNotification(notificationId: string): Promise<boolean> {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+
+    if (error) {
+      console.error('Error deleting notification:', error)
+      return false
+    }
+
+    return true
   },
 
   // 알림 읽음 처리
@@ -543,6 +714,209 @@ export const notificationAPI = {
 
     if (error) {
       console.error('Error marking notification as read:', error)
+      return false
+    }
+
+    return true
+  }
+}
+
+// 피드백 관련 함수들
+export const feedbackAPI = {
+  // 이벤트 피드백 가져오기
+  async getEventFeedback(eventId: string): Promise<any[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching event feedback:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // 사용자 피드백 가져오기
+  async getUserFeedback(userId: string): Promise<any[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching user feedback:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // 특정 피드백 가져오기
+  async getFeedback(feedbackId: string): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('id', feedbackId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching feedback:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 피드백 생성
+  async createFeedback(feedback: any): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .insert(feedback)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating feedback:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 피드백 업데이트
+  async updateFeedback(feedbackId: string, updates: any): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .update(updates)
+      .eq('id', feedbackId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating feedback:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 피드백 삭제
+  async deleteFeedback(feedbackId: string): Promise<boolean> {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('feedback')
+      .delete()
+      .eq('id', feedbackId)
+
+    if (error) {
+      console.error('Error deleting feedback:', error)
+      return false
+    }
+
+    return true
+  }
+}
+
+// 역할 관련 함수들
+export const roleAPI = {
+  // 모든 역할 가져오기
+  async getAllRoles(): Promise<any[]> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .order('id', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching roles:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // 특정 역할 가져오기
+  async getRole(roleId: number): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('id', roleId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching role:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 역할 생성
+  async createRole(role: any): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('roles')
+      .insert(role)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating role:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 역할 업데이트
+  async updateRole(roleId: number, updates: any): Promise<any | null> {
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('roles')
+      .update(updates)
+      .eq('id', roleId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating role:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // 역할 삭제
+  async deleteRole(roleId: number): Promise<boolean> {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('roles')
+      .delete()
+      .eq('id', roleId)
+
+    if (error) {
+      console.error('Error deleting role:', error)
       return false
     }
 

@@ -1,9 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { motion } from 'framer-motion'
 import jsQR from 'jsqr'
-import { ArrowLeft, Flashlight, Image, Keyboard } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
@@ -16,42 +15,11 @@ export default function ScanCardPage() {
   const webcamRef = useRef<Webcam>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // 카메라 활성화
-  const activateCamera = useCallback(() => {
+  // 컴포넌트 마운트 시 바로 카메라 활성화
+  useEffect(() => {
     setIsCameraActive(true)
     setIsScanning(true)
   }, [])
-
-  // QR 코드 스캔
-  const scanQRCode = useCallback(() => {
-    if (webcamRef.current && canvasRef.current) {
-      const video = webcamRef.current.video
-      if (video) {
-        const canvas = canvasRef.current
-        const context = canvas.getContext('2d')
-        if (context) {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          context.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-          const code = jsQR(imageData.data, imageData.width, imageData.height)
-
-          if (code) {
-            console.log('QR 코드 감지:', code.data)
-            // QR 코드 데이터 처리
-            handleQRCodeDetected(code.data)
-            return
-          }
-        }
-      }
-    }
-
-    // QR 코드가 감지되지 않으면 계속 스캔
-    if (isScanning) {
-      requestAnimationFrame(scanQRCode)
-    }
-  }, [isScanning])
 
   // QR 코드 감지 시 처리
   const handleQRCodeDetected = useCallback((qrData: string) => {
@@ -84,10 +52,76 @@ export default function ScanCardPage() {
     }
   }, [])
 
+  // QR 코드 스캔
+  const scanQRCode = useCallback(() => {
+    if (webcamRef.current && canvasRef.current) {
+      const video = webcamRef.current.video
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+        const canvas = canvasRef.current
+        const context = canvas.getContext('2d')
+        if (context) {
+          // 비디오 크기가 유효한지 확인
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            // 비디오가 아직 로드되지 않았으면 다시 시도
+            if (isScanning) {
+              requestAnimationFrame(scanQRCode)
+            }
+            return
+          }
+
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+
+          try {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+            // 캔버스 크기가 유효한지 확인
+            if (canvas.width === 0 || canvas.height === 0) {
+              console.warn('캔버스 크기가 0입니다. 다시 시도합니다.')
+              if (isScanning) {
+                requestAnimationFrame(scanQRCode)
+              }
+              return
+            }
+
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+            const code = jsQR(imageData.data, imageData.width, imageData.height)
+
+            if (code) {
+              console.log('QR 코드 감지:', code.data)
+              // QR 코드 데이터 처리
+              handleQRCodeDetected(code.data)
+              return
+            }
+          } catch (error) {
+            console.error('QR 스캔 오류:', error)
+            // 오류 발생 시 잠시 대기 후 다시 시도
+            setTimeout(() => {
+              if (isScanning) {
+                requestAnimationFrame(scanQRCode)
+              }
+            }, 100)
+            return
+          }
+        }
+      }
+    }
+
+    // QR 코드가 감지되지 않으면 계속 스캔
+    if (isScanning) {
+      requestAnimationFrame(scanQRCode)
+    }
+  }, [isScanning, handleQRCodeDetected])
+
   // 카메라 활성화 시 QR 스캔 시작
   useEffect(() => {
     if (isCameraActive && isScanning) {
-      scanQRCode()
+      // 카메라가 로드될 때까지 잠시 대기
+      const timer = setTimeout(() => {
+        scanQRCode()
+      }, 1000) // 1초 대기
+
+      return () => clearTimeout(timer)
     }
   }, [isCameraActive, isScanning, scanQRCode])
 
@@ -119,17 +153,35 @@ export default function ScanCardPage() {
             if (canvas) {
               const context = canvas.getContext('2d')
               if (context) {
+                // 이미지 크기가 유효한지 확인
+                if (img.width === 0 || img.height === 0) {
+                  alert('이미지 크기가 유효하지 않습니다.')
+                  return
+                }
+
                 canvas.width = img.width
                 canvas.height = img.height
-                context.drawImage(img, 0, 0)
 
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-                const code = jsQR(imageData.data, imageData.width, imageData.height)
+                try {
+                  context.drawImage(img, 0, 0)
 
-                if (code) {
-                  handleQRCodeDetected(code.data)
-                } else {
-                  alert('이미지에서 QR 코드를 찾을 수 없습니다.')
+                  // 캔버스 크기가 유효한지 확인
+                  if (canvas.width === 0 || canvas.height === 0) {
+                    alert('이미지 처리 중 오류가 발생했습니다.')
+                    return
+                  }
+
+                  const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+                  const code = jsQR(imageData.data, imageData.width, imageData.height)
+
+                  if (code) {
+                    handleQRCodeDetected(code.data)
+                  } else {
+                    alert('이미지에서 QR 코드를 찾을 수 없습니다.')
+                  }
+                } catch (error) {
+                  console.error('이미지 QR 스캔 오류:', error)
+                  alert('이미지 처리 중 오류가 발생했습니다.')
                 }
               }
             }
@@ -155,7 +207,7 @@ export default function ScanCardPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="fixed inset-0 bg-black">
       {/* 숨겨진 캔버스 (QR 스캔용) */}
       <canvas ref={canvasRef} className="hidden" />
 
@@ -168,149 +220,53 @@ export default function ScanCardPage() {
             </Button>
           </Link>
           <h1 className="text-lg font-bold text-white">명함 스캔</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 bg-white/10 hover:bg-white/20"
-            onClick={() => setIsFlashOn(!isFlashOn)}
-          >
-            <Flashlight className={`w-4 h-4 ${isFlashOn ? 'text-yellow-400' : 'text-white'}`} />
-          </Button>
+          <div></div>
         </div>
       </div>
 
-      {/* 카메라 뷰 */}
-      <div className="relative w-full h-full min-h-screen">
-        {!isCameraActive ? (
-          // 카메라 시작 화면
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black">
-            {/* 스캔 프레임 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-64 h-64 border-2 border-white rounded-2xl relative">
-                {/* 스캔 영역 표시 */}
-                <div className="absolute inset-0 border-2 border-white rounded-2xl"></div>
+      {/* 카메라 뷰 - 전체 화면 */}
+      <div className="absolute inset-0">
+        <Webcam
+          ref={webcamRef}
+          audio={false}
+          screenshotFormat="image/jpeg"
+          className="w-full h-full object-cover"
+          videoConstraints={{
+            width: 1280,
+            height: 720,
+            facingMode: "environment" // 후면 카메라 사용
+          }}
+          onUserMedia={() => {
+            console.log('카메라가 로드되었습니다.')
+            // 카메라 로드 후 QR 스캔 시작
+            if (isScanning) {
+              setTimeout(() => {
+                scanQRCode()
+              }, 500)
+            }
+          }}
+        />
 
-                {/* 모서리 표시 */}
-                <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-purple-600 rounded-tl-lg"></div>
-                <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-purple-600 rounded-tr-lg"></div>
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-purple-600 rounded-bl-lg"></div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-purple-600 rounded-br-lg"></div>
-              </div>
-            </div>
-
-            {/* 안내 텍스트 */}
-            <div className="absolute bottom-32 left-0 right-0 text-center px-5">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <h2 className="text-lg font-semibold text-white mb-2">
-                  상대방의 명함 QR 코드를 스캔하세요
-                </h2>
-                <p className="text-gray-300 text-sm">
-                  자동으로 인식되어 명함이 저장됩니다
-                </p>
-              </motion.div>
-            </div>
-
-            {/* 카메라 시작 버튼 */}
-            <div className="absolute bottom-40 left-0 right-0 text-center">
-              <Button
-                onClick={activateCamera}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3"
-              >
-                카메라 시작
-              </Button>
-            </div>
+        {/* 스캔 프레임 오버레이 */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-64 h-64 relative">
+            {/* 모서리 표시 */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-purple-600 rounded-tl-lg"></div>
+            <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-purple-600 rounded-tr-lg"></div>
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-purple-600 rounded-bl-lg"></div>
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-purple-600 rounded-br-lg"></div>
           </div>
-        ) : (
-          // 실제 카메라 화면
-          <div className="relative w-full h-full">
-            <Webcam
-              ref={webcamRef}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              className="w-full h-full object-cover"
-              videoConstraints={{
-                width: 1280,
-                height: 720,
-                facingMode: "environment" // 후면 카메라 사용
-              }}
-            />
+        </div>
 
-            {/* 스캔 프레임 오버레이 */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-64 h-64 border-2 border-white rounded-2xl relative">
-                {/* 모서리 표시 */}
-                <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-purple-600 rounded-tl-lg"></div>
-                <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-purple-600 rounded-tr-lg"></div>
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-purple-600 rounded-bl-lg"></div>
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-purple-600 rounded-br-lg"></div>
-              </div>
-            </div>
-
-            {/* 스캔 중 표시 */}
-            {isScanning && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <div className="text-white text-center">
-                  <div className="animate-pulse">QR 코드 스캔 중...</div>
-                </div>
-              </div>
-            )}
-
-            {/* 촬영 버튼 */}
-            <div className="absolute bottom-32 left-0 right-0 text-center">
-              <Button
-                onClick={capturePhoto}
-                className="w-16 h-16 bg-white rounded-full flex items-center justify-center"
-              >
-                <div className="w-12 h-12 bg-purple-600 rounded-full"></div>
-              </Button>
+        {/* 스캔 중 표시 */}
+        {isScanning && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div className="text-white text-center">
+              <div className="animate-pulse">QR 코드 스캔 중...</div>
             </div>
           </div>
         )}
       </div>
-
-      {/* 하단 버튼들 */}
-      <div className="absolute bottom-20 left-0 right-0 px-5">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="flex justify-center gap-3"
-        >
-          <Button
-            variant="outline"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-            onClick={handleGallerySelect}
-          >
-            <Image className="w-4 h-4 mr-2" />
-            갤러리
-          </Button>
-
-          <Button
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={handleManualInput}
-          >
-            <Keyboard className="w-4 h-4 mr-2" />
-            수동 입력
-          </Button>
-        </motion.div>
-      </div>
-
-
-      {/* QR 스캔 시뮬레이션 버튼 (개발용) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-20 right-5">
-          <Button
-            onClick={simulateQRScan}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs"
-          >
-            QR 스캔 시뮬레이션
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

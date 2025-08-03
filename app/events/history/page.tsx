@@ -3,16 +3,38 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { useEvents } from '@/hooks/use-events'
+import { eventAPI } from '@/lib/supabase/database'
 import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function EventHistoryPage() {
-  const { events, ongoingEvents, upcomingEvents, completedEvents } = useEvents()
+  const [events, setEvents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'진행중' | '예정' | '종료'>('진행중')
   const router = useRouter()
+
+  // 이벤트 필터링
+  const ongoingEvents = events.filter(event => event.status === 'ongoing')
+  const upcomingEvents = events.filter(event => event.status === 'upcoming')
+  const completedEvents = events.filter(event => event.status === 'completed')
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoading(true)
+        const eventsData = await eventAPI.getAllEvents()
+        setEvents(eventsData)
+      } catch (error) {
+        console.error('Error loading events:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadEvents()
+  }, [])
 
   const getEventsByTab = () => {
     switch (activeTab) {
@@ -41,6 +63,15 @@ export default function EventHistoryPage() {
   }
 
   const filteredEvents = getEventsByTab()
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen">

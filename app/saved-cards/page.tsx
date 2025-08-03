@@ -4,18 +4,56 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
-import { useBusinessCards } from '@/hooks/use-business-cards'
+import { collectedCardAPI } from '@/lib/supabase/database'
 import { ArrowLeft, Heart, Search, User } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function SavedCardsPage() {
   const { user } = useAuth()
-  const { collectedCards, favoriteCards, toggleFavorite, loading } = useBusinessCards()
+  const [collectedCards, setCollectedCards] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [showFavorites, setShowFavorites] = useState(false)
   const router = useRouter()
+
+  // 즐겨찾기된 명함 필터링
+  const favoriteCards = collectedCards.filter(card => card.is_favorite)
+
+  useEffect(() => {
+    const loadCollectedCards = async () => {
+      if (!user?.id) return
+      try {
+        setLoading(true)
+        const cardsData = await collectedCardAPI.getUserCollectedCards(user.id)
+        setCollectedCards(cardsData)
+      } catch (error) {
+        console.error('Error loading collected cards:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadCollectedCards()
+  }, [user?.id])
+
+  const handleToggleFavorite = async (collectionId: string, isFavorite: boolean) => {
+    try {
+      const success = await collectedCardAPI.toggleFavorite(collectionId, isFavorite)
+      if (success) {
+        setCollectedCards(prev =>
+          prev.map(card =>
+            card.id === collectionId
+              ? { ...card, is_favorite: isFavorite }
+              : card
+          )
+        )
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    }
+  }
 
   // 필터링된 명함 목록
   const filteredCards = collectedCards.filter(card => {
@@ -29,12 +67,15 @@ export default function SavedCardsPage() {
     return matchesSearch && matchesFavorite
   })
 
-  const handleToggleFavorite = async (collectionId: string, isFavorite: boolean) => {
-    try {
-      await toggleFavorite(collectionId, !isFavorite)
-    } catch (error) {
-      console.error('즐겨찾기 토글 오류:', error)
-    }
+
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    )
   }
 
   if (!user) {

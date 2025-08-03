@@ -4,24 +4,95 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { useBusinessCards } from '@/hooks/use-business-cards'
-import { useEvents } from '@/hooks/use-events'
-import { useUserProfile } from '@/hooks/use-user-profile'
+import { businessCardAPI, collectedCardAPI, eventAPI, userProfileAPI } from '@/lib/supabase/database'
 import { Calendar, Camera, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth()
-  const { profile, getDisplayName, getInitial, loading: profileLoading } = useUserProfile()
-  const { events, ongoingEvents, upcomingEvents, completedEvents, loading: eventsLoading } = useEvents()
-  const { userCard, collectedCards, loading: cardsLoading } = useBusinessCards()
+  const [profile, setProfile] = useState<any>(null)
+  const [events, setEvents] = useState<any[]>([])
+  const [userCard, setUserCard] = useState<any>(null)
+  const [collectedCards, setCollectedCards] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'진행중' | '예정' | '종료'>('진행중')
+
+  // 데이터 로딩 함수들
+  const loadProfile = async () => {
+    if (!user?.id) return
+    try {
+      const profileData = await userProfileAPI.getUserProfile(user.id)
+      setProfile(profileData)
+    } catch (error) {
+      console.error('Error loading profile:', error)
+    }
+  }
+
+  const loadEvents = async () => {
+    try {
+      const eventsData = await eventAPI.getAllEvents()
+      setEvents(eventsData)
+    } catch (error) {
+      console.error('Error loading events:', error)
+    }
+  }
+
+  const loadUserCard = async () => {
+    if (!user?.id) return
+    try {
+      const cardData = await businessCardAPI.getUserBusinessCard(user.id)
+      setUserCard(cardData)
+    } catch (error) {
+      console.error('Error loading user card:', error)
+    }
+  }
+
+  const loadCollectedCards = async () => {
+    if (!user?.id) return
+    try {
+      const cardsData = await collectedCardAPI.getUserCollectedCards(user.id)
+      setCollectedCards(cardsData)
+    } catch (error) {
+      console.error('Error loading collected cards:', error)
+    }
+  }
+
+  // 유틸리티 함수들
+  const getDisplayName = () => {
+    return profile?.full_name || profile?.nickname || user?.email || '사용자'
+  }
+
+  const getInitial = () => {
+    const name = getDisplayName()
+    return name.charAt(0).toUpperCase()
+  }
+
+  // 이벤트 필터링
+  const ongoingEvents = events.filter(event => event.status === 'ongoing')
+  const upcomingEvents = events.filter(event => event.status === 'upcoming')
+  const completedEvents = events.filter(event => event.status === 'completed')
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (user?.id) {
+      const loadAllData = async () => {
+        setLoading(true)
+        await Promise.all([
+          loadProfile(),
+          loadEvents(),
+          loadUserCard(),
+          loadCollectedCards()
+        ])
+        setLoading(false)
+      }
+      loadAllData()
+    }
+  }, [user?.id])
 
   // 인증 로딩 중이거나 마운트되지 않은 경우
   if (!mounted || authLoading || !user) {
@@ -43,6 +114,15 @@ export default function HomePage() {
             <Button>로그인하기</Button>
           </Link>
         </div>
+      </div>
+    )
+  }
+
+  // 데이터 로딩 중
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     )
   }
@@ -107,7 +187,7 @@ export default function HomePage() {
             <CardContent className="p-4 flex justify-between items-center">
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {eventsLoading ? '...' : events.length}
+                  {events.length}
                 </p>
                 <p className="text-sm text-gray-600">참가 행사</p>
               </div>
@@ -134,7 +214,7 @@ export default function HomePage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{getDisplayName()}</h3>
                   <p className="text-sm text-gray-600">
-                    {cardsLoading ? '로딩 중...' : `${userCard?.role || '직책'} / ${userCard?.company || '회사'}`}
+                    {`${userCard?.role || '직책'} / ${userCard?.company || '회사'}`}
                   </p>
                 </div>
               </div>
