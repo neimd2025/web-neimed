@@ -57,6 +57,20 @@ export default function NotificationsPage() {
     fetchNotifications()
   }, [user, supabase])
 
+  // 실시간 공지 수신을 위한 useEffect
+  useEffect(() => {
+    const channel = supabase.channel('notifications')
+      .on('broadcast', { event: 'new_notification' }, (payload) => {
+        setNotifications((prev) => [payload.notification, ...prev]);
+        toast.success('새 공지가 도착했습니다!');
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // 알림 읽음 처리 함수
   const markAsRead = async (notificationId: string) => {
     if (!user) return

@@ -255,7 +255,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       )
 
-      set({ loading: false, initialized: true })
+      // 초기 세션이 없는 경우에도 로딩 상태 해제
+      if (!session) {
+        set({ loading: false, initialized: true })
+      }
 
       // Cleanup subscription on unmount
       return () => subscription.unsubscribe()

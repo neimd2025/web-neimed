@@ -3,9 +3,11 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { logError } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
-import { ArrowLeft, Bell, Calendar, Copy, Eye, FileText, Filter, MapPin, MoreVertical, Plus, Save, Search, Share, Users, X } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
+import { ArrowLeft, Bell, Calendar, Copy, Eye, FileText, MapPin, MoreVertical, Plus, Save, Share, Users, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -25,16 +27,30 @@ interface Event {
   image_url?: string
 }
 
+interface Participant {
+  id: string
+  name: string
+  email: string
+  phone: string
+  university?: string
+  major?: string
+  company?: string
+  position?: string
+  interests: string
+  event_id: string
+}
+
 export default function AdminEventsPage() {
   const router = useRouter()
   const { adminUser } = useAuthStore()
-  const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("all")
-  const [searchTerm, setSearchTerm] = useState("")
+  const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("ongoing")
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
-  const [showQRModal, setShowQRModal] = useState(false)
+  const [showQRBottomSheet, setShowQRBottomSheet] = useState(false)
+  const [showParticipantsBottomSheet, setShowParticipantsBottomSheet] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [participants, setParticipants] = useState<Participant[]>([])
   const [noticeTitle, setNoticeTitle] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
   const supabase = createClient()
@@ -50,14 +66,14 @@ export default function AdminEventsPage() {
           .order('created_at', { ascending: false })
 
         if (error) {
-          console.error('이벤트 가져오기 오류:', error)
+          logError('이벤트 가져오기 오류:', error)
           toast.error('이벤트를 불러오는데 실패했습니다.')
           return
         }
 
         setEvents(data || [])
       } catch (error) {
-        console.error('이벤트 가져오기 오류:', error)
+        logError('이벤트 가져오기 오류:', error)
         toast.error('이벤트를 불러오는데 실패했습니다.')
       } finally {
         setLoading(false)
@@ -66,6 +82,44 @@ export default function AdminEventsPage() {
 
     fetchEvents()
   }, [supabase])
+
+  // 참여자 데이터 가져오기
+  const fetchParticipants = async (eventId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select(`
+          *,
+          user_profiles!event_participants_user_profiles_fkey(full_name, email, company, role)
+        `)
+        .eq('event_id', eventId)
+
+      if (error) {
+        logError('참여자 가져오기 오류:', error)
+        toast.error('참여자를 불러오는데 실패했습니다.')
+        return
+      }
+
+      // 데이터 형식 변환
+      const formattedParticipants = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.user_profiles?.full_name || '알 수 없음',
+        email: item.user_profiles?.email || '알 수 없음',
+        phone: '', // event_participants 테이블에는 phone 필드가 없으므로 빈 문자열
+        university: '', // event_participants 테이블에는 university 필드가 없으므로 빈 문자열
+        major: '', // event_participants 테이블에는 major 필드가 없으므로 빈 문자열
+        company: item.user_profiles?.company || '알 수 없음',
+        position: item.user_profiles?.role || '알 수 없음',
+        interests: '', // event_participants 테이블에는 interests 필드가 없으므로 빈 문자열
+        event_id: item.event_id
+      }))
+
+      setParticipants(formattedParticipants)
+    } catch (error) {
+      logError('참여자 가져오기 오류:', error)
+      toast.error('참여자를 불러오는데 실패했습니다.')
+    }
+  }
 
   const getStatusBadge = (status: Event["status"]) => {
     const statusConfig = {
@@ -87,34 +141,9 @@ export default function AdminEventsPage() {
   }
 
   const filteredEvents = events.filter(event => {
-    const matchesFilter = filter === "all" || event.status === filter
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.event_code.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesFilter && matchesSearch
+    if (filter === "all") return true
+    return event.status === filter
   })
-
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm("정말로 이 이벤트를 삭제하시겠습니까?")) return
-
-    try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId)
-
-      if (error) {
-        console.error('이벤트 삭제 오류:', error)
-        toast.error('이벤트 삭제에 실패했습니다.')
-        return
-      }
-
-      setEvents(prev => prev.filter(event => event.id !== eventId))
-      toast.success('이벤트가 성공적으로 삭제되었습니다.')
-    } catch (error) {
-      console.error('이벤트 삭제 오류:', error)
-      toast.error('이벤트 삭제에 실패했습니다.')
-    }
-  }
 
   const handleSendNotice = async () => {
     if (!selectedEvent || !noticeTitle || !noticeMessage) {
@@ -130,7 +159,7 @@ export default function AdminEventsPage() {
       setNoticeMessage("")
       setSelectedEvent(null)
     } catch (error) {
-      console.error('공지 전송 오류:', error)
+      logError('공지 전송 오류:', error)
       toast.error('공지 전송에 실패했습니다.')
     }
   }
@@ -162,6 +191,17 @@ export default function AdminEventsPage() {
   const handleSaveQR = () => {
     // QR 코드 저장 로직 구현
     toast.success('QR 코드가 저장되었습니다.')
+  }
+
+  const handleViewParticipants = async (event: Event) => {
+    setSelectedEvent(event)
+    await fetchParticipants(event.id)
+    setShowParticipantsBottomSheet(true)
+  }
+
+  const handleViewQR = (event: Event) => {
+    setSelectedEvent(event)
+    setShowQRBottomSheet(true)
   }
 
   if (!adminUser) {
@@ -200,107 +240,25 @@ export default function AdminEventsPage() {
       </div>
 
       <div className="px-6 py-8">
-        {/* 검색 및 필터 섹션 */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="이벤트명 또는 코드로 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white shadow-sm"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-500" />
-              <div className="bg-white rounded-xl p-1 shadow-sm border border-gray-200">
-                <div className="flex">
-                  {(["all", "upcoming", "ongoing", "completed"] as const).map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setFilter(status)}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                        filter === status
-                          ? "bg-purple-600 text-white shadow-md"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                      }`}
-                    >
-                      {status === "all" && "전체"}
-                      {status === "upcoming" && "예정"}
-                      {status === "ongoing" && "진행중"}
-                      {status === "completed" && "완료"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+        {/* 필터 버튼 */}
+        <div className="mb-6">
+          <div className="bg-gray-100 rounded-lg p-1 inline-flex">
+            {(["ongoing", "upcoming", "completed"] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilter(status)}
+                className={`px-8 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  filter === status
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {status === "ongoing" && "진행중"}
+                {status === "upcoming" && "예정"}
+                {status === "completed" && "종료"}
+              </button>
+            ))}
           </div>
-        </div>
-
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-blue-900">{filteredEvents.length}</div>
-                  <div className="text-sm text-blue-700">전체 이벤트</div>
-                </div>
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-green-900">
-                    {filteredEvents.filter(e => e.status === "ongoing").length}
-                  </div>
-                  <div className="text-sm text-green-700">진행중</div>
-                </div>
-                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-purple-900">
-                    {filteredEvents.filter(e => e.status === "upcoming").length}
-                  </div>
-                  <div className="text-sm text-purple-700">예정</div>
-                </div>
-                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {filteredEvents.filter(e => e.status === "completed").length}
-                  </div>
-                  <div className="text-sm text-gray-700">완료</div>
-                </div>
-                <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* 이벤트 목록 */}
@@ -327,21 +285,21 @@ export default function AdminEventsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
               {filteredEvents.map((event) => (
                 <Card key={event.id} className="overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0">
                   <div className="relative">
                     {/* 이벤트 이미지 */}
-                    <div className="h-40 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 relative">
-                      <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <div className="h-32 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 relative">
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
                         {getStatusBadge(event.status)}
                       </div>
-                      <div className="absolute top-4 right-4">
+                      <div className="absolute top-3 right-3">
                         <Button variant="ghost" size="sm" className="bg-black bg-opacity-20 hover:bg-opacity-30 text-white">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="absolute bottom-4 left-4 right-4">
+                      <div className="absolute bottom-3 left-3 right-3">
                         <div className="flex items-center gap-2 text-white">
                           <MapPin className="h-4 w-4" />
                           <span className="text-sm font-medium">{event.location || "온라인"}</span>
@@ -352,7 +310,7 @@ export default function AdminEventsPage() {
                     {/* 이벤트 정보 */}
                     <div className="p-6">
                       <div className="mb-4">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{event.title}</h3>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">{event.title}</h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
@@ -360,7 +318,7 @@ export default function AdminEventsPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-4 w-4" />
-                            <span>{event.max_participants}명</span>
+                            <span>제출자: {event.max_participants}명</span>
                           </div>
                         </div>
                       </div>
@@ -385,13 +343,10 @@ export default function AdminEventsPage() {
                           variant="outline"
                           size="sm"
                           className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-200"
-                          onClick={() => {
-                            setSelectedEvent(event)
-                            router.push(`/admin/events/${event.id}/participants`)
-                          }}
+                          onClick={() => handleViewParticipants(event)}
                         >
                           <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline">참여자</span>
+                          <span className="hidden sm:inline">참여자 보기</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -403,19 +358,16 @@ export default function AdminEventsPage() {
                           }}
                         >
                           <Bell className="h-4 w-4" />
-                          <span className="hidden sm:inline">공지</span>
+                          <span className="hidden sm:inline">공지 전송</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-200"
-                          onClick={() => {
-                            setSelectedEvent(event)
-                            setShowQRModal(true)
-                          }}
+                          onClick={() => handleViewQR(event)}
                         >
                           <FileText className="h-4 w-4" />
-                          <span className="hidden sm:inline">QR</span>
+                          <span className="hidden sm:inline">리포트 받기</span>
                         </Button>
                       </div>
                     </div>
@@ -492,90 +444,201 @@ export default function AdminEventsPage() {
         </div>
       )}
 
-      {/* QR 코드 모달 */}
-      {showQRModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <div className="w-5 h-5 border-2 border-white rounded-sm relative">
-                      <div className="absolute inset-0.5 border border-white rounded-sm"></div>
-                      <div className="absolute top-0.5 left-0.5 w-1 h-1 bg-white rounded-full"></div>
-                      <div className="absolute bottom-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
-                    </div>
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-900">참여자 QR 코드</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowQRModal(false)}
-                  className="hover:bg-gray-100"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+      {/* QR 코드 바텀시트 */}
+      <AnimatePresence>
+        {showQRBottomSheet && selectedEvent && (
+          <>
+            {/* 배경 오버레이 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50"
+              onClick={() => setShowQRBottomSheet(false)}
+            />
+
+            {/* 바텀시트 */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden max-w-md mx-auto"
+            >
+              {/* 핸들 */}
+              <div className="flex justify-center pt-4 pb-2">
+                <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
               </div>
 
-              <div className="text-center mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">ND</span>
+              <div className="px-6 pb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-white rounded-sm relative">
+                        <div className="absolute inset-0.5 border border-white rounded-sm"></div>
+                        <div className="absolute top-0.5 left-0.5 w-1 h-1 bg-white rounded-full"></div>
+                        <div className="absolute bottom-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
+                      </div>
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">참여자 QR 코드</h2>
                   </div>
-                  <div className="text-left">
-                    <span className="font-semibold text-gray-900 text-lg">{selectedEvent.title}</span>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>{selectedEvent.event_code}</p>
-                      <p>{formatDate(selectedEvent.start_date)}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowQRBottomSheet(false)}
+                    className="hover:bg-gray-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="text-center mb-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">ND</span>
+                    </div>
+                    <div className="text-left">
+                      <span className="font-semibold text-gray-900 text-lg">{selectedEvent.title}</span>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p>{selectedEvent.event_code}</p>
+                        <p>{formatDate(selectedEvent.start_date)}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="text-center mb-6">
-                <div className="w-56 h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner">
-                  <div className="text-center">
-                    <div className="w-40 h-40 bg-white border-2 border-gray-300 rounded-lg mx-auto mb-3 shadow-sm"></div>
-                    <p className="text-xs text-gray-500 font-medium">QR Code</p>
+                <div className="text-center mb-6">
+                  <div className="w-56 h-56 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-inner">
+                    <div className="text-center">
+                      <div className="w-40 h-40 bg-white border-2 border-gray-300 rounded-lg mx-auto mb-3 shadow-sm"></div>
+                      <p className="text-xs text-gray-500 font-medium">QR Code</p>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                  이 QR 코드를 스캔하거나<br />
-                  아래 링크로 접속해 명함을 제출할 수 있어요
-                </p>
-                <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
-                  <p className="text-xs text-gray-600 break-all font-mono">
-                    {window.location.origin}/events/{selectedEvent.id}
+                  <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                    이 QR 코드를 스캔하거나<br />
+                    아래 링크로 접속해 명함을 제출할 수 있어요
                   </p>
+                  <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+                    <p className="text-xs text-gray-600 break-all font-mono">
+                      {window.location.origin}/events/{selectedEvent.id}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex items-center gap-2">
+                    <Copy className="h-4 w-4" />
+                    <span className="hidden sm:inline">링크 복사</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-2">
+                    <Share className="h-4 w-4" />
+                    <span className="hidden sm:inline">공유하기</span>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSaveQR} className="flex items-center gap-2">
+                    <Save className="h-4 w-4" />
+                    <span className="hidden sm:inline">QR 저장</span>
+                  </Button>
+                </div>
+
+                <Button
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
+                  onClick={() => setShowQRBottomSheet(false)}
+                >
+                  닫기
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 참여자 명함보기 바텀시트 */}
+      <AnimatePresence>
+        {showParticipantsBottomSheet && selectedEvent && (
+          <>
+            {/* 배경 오버레이 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50"
+              onClick={() => setShowParticipantsBottomSheet(false)}
+            />
+
+            {/* 바텀시트 */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden max-w-md mx-auto"
+            >
+              {/* 핸들 */}
+              <div className="flex justify-center pt-4 pb-2">
+                <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+              </div>
+
+              <div className="px-6 pb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                      <Users className="h-5 w-5 text-white" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">참여자 명함보기</h2>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowParticipantsBottomSheet(false)}
+                    className="hover:bg-gray-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                  {participants.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">아직 참여자가 없습니다.</p>
+                    </div>
+                  ) : (
+                    participants.map((participant) => (
+                      <Card key={participant.id} className="bg-white shadow-sm border border-gray-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h3 className="font-semibold text-gray-900 text-lg">{participant.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {participant.university && participant.major
+                                  ? `${participant.university} / ${participant.major}`
+                                  : participant.company && participant.position
+                                  ? `${participant.company} / ${participant.position}`
+                                  : "정보 없음"
+                                }
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm">
+                              <Save className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600">{participant.email}</p>
+                            <p className="text-sm text-gray-600">{participant.phone}</p>
+                            <div className="bg-gray-50 rounded-lg p-2">
+                              <p className="text-xs text-gray-600">관심분야: {participant.interests}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-2 mb-6">
-                <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex items-center gap-2">
-                  <Copy className="h-4 w-4" />
-                  <span className="hidden sm:inline">복사</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-2">
-                  <Share className="h-4 w-4" />
-                  <span className="hidden sm:inline">공유</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleSaveQR} className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  <span className="hidden sm:inline">저장</span>
-                </Button>
-              </div>
-
-              <Button
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
-                onClick={() => setShowQRModal(false)}
-              >
-                닫기
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-
 export default function EventJoinPage() {
   const { user } = useAuth()
   const { findEventByCode, events } = useEvents()
@@ -64,9 +64,53 @@ export default function EventJoinPage() {
         return
       }
 
-      // 이벤트 상세 페이지로 이동
-      router.push(`/events/${event.id}`)
+      // 실제 이벤트 참가 로직
+      const supabase = createClient()
+
+      // 이미 참가했는지 확인
+      const { data: existingParticipation } = await supabase
+        .from('event_participants')
+        .select('*')
+        .eq('event_id', event.id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (existingParticipation) {
+        toast.error('이미 참가한 이벤트입니다.')
+        router.push(`/events/${event.id}`)
+        return
+      }
+
+      // 이벤트 참가 정보 추가
+      const { error: joinError } = await supabase
+        .from('event_participants')
+        .insert({
+          event_id: event.id,
+          user_id: user.id,
+          status: 'confirmed',
+          joined_at: new Date().toISOString()
+        })
+
+      if (joinError) {
+        console.error('이벤트 참가 오류:', joinError)
+        toast.error('이벤트 참가에 실패했습니다.')
+        return
+      }
+
+      // 이벤트 참가자 수 업데이트
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({
+          current_participants: (event.current_participants || 0) + 1
+        })
+        .eq('id', event.id)
+
+      if (updateError) {
+        console.error('참가자 수 업데이트 오류:', updateError)
+      }
+
       toast.success('이벤트에 참가했습니다!')
+      router.push(`/events/${event.id}`)
     } catch (error) {
       console.error('이벤트 참가 오류:', error)
       toast.error('이벤트 참가에 실패했습니다.')

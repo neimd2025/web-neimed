@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
+import { logError } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 interface Event {
@@ -34,10 +35,6 @@ interface Participant {
   event_id: string
   status: string
   joined_at: string
-  user: {
-    full_name: string
-    email: string
-  }
 }
 
 export default function EventDetailPage() {
@@ -68,7 +65,7 @@ export default function EventDetailPage() {
           await checkParticipantStatus(params.id as string)
         }
       } catch (error) {
-        console.error('이벤트 로드 오류:', error)
+        logError('이벤트 로드 오류:', error)
         toast.error('이벤트를 불러오는데 실패했습니다.')
       } finally {
         setLoading(false)
@@ -78,51 +75,49 @@ export default function EventDetailPage() {
     fetchEventData()
   }, [params.id, loadEvent, user])
 
-  const loadParticipants = async (eventId: string) => {
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('event_participants')
-        .select(`
-          *,
-          user:user_profiles(full_name, email)
-        `)
-        .eq('event_id', eventId)
-        .order('joined_at', { ascending: false })
-
-      if (error) {
-        console.error('참가자 목록 로드 오류:', error)
-        return
-      }
-
-      setParticipants(data || [])
-    } catch (error) {
-      console.error('참가자 목록 로드 오류:', error)
-    }
-  }
-
-  const checkParticipantStatus = async (eventId: string) => {
-    if (!user) return
-
+  const loadParticipants = useCallback(async (eventId: string) => {
     try {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('event_participants')
         .select('*')
         .eq('event_id', eventId)
-        .eq('user_id', user.id)
-        .single()
+        .order('joined_at', { ascending: false })
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('참가자 상태 확인 오류:', error)
+      if (error) {
+        logError('참가자 목록 로드 오류:', error)
         return
       }
 
-      setIsParticipant(!!data)
+      setParticipants(data || [])
     } catch (error) {
-      console.error('참가자 상태 확인 오류:', error)
+      logError('참가자 목록 로드 오류:', error)
     }
-  }
+  }, [])
+
+  const checkParticipantStatus = useCallback(async (eventId: string) => {
+    if (!user) return
+
+    try {
+      const supabase = createClient()
+      // 모든 참가자 목록을 가져온 후 클라이언트에서 필터링
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select('*')
+        .eq('event_id', eventId)
+
+      if (error) {
+        logError('참가자 상태 확인 오류:', error)
+        return
+      }
+
+      // 클라이언트에서 현재 사용자의 참가 상태 확인
+      const userParticipation = data?.find(participant => participant.user_id === user.id)
+      setIsParticipant(!!userParticipation)
+    } catch (error) {
+      logError('참가자 상태 확인 오류:', error)
+    }
+  }, [user])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -168,7 +163,7 @@ export default function EventDetailPage() {
         })
 
       if (joinError) {
-        console.error('이벤트 참가 오류:', joinError)
+        logError('이벤트 참가 오류:', joinError)
         toast.error('이벤트 참가에 실패했습니다.')
         return
       }
@@ -182,7 +177,7 @@ export default function EventDetailPage() {
         .eq('id', event.id)
 
       if (updateError) {
-        console.error('참가자 수 업데이트 오류:', updateError)
+        logError('참가자 수 업데이트 오류:', updateError)
       }
 
       toast.success('이벤트에 참가했습니다!')
@@ -194,7 +189,7 @@ export default function EventDetailPage() {
       await loadParticipants(event.id)
 
     } catch (error) {
-      console.error('이벤트 참가 중 오류:', error)
+      logError('이벤트 참가 중 오류:', error)
       toast.error('이벤트 참가에 실패했습니다.')
     } finally {
       setJoining(false)
@@ -323,7 +318,7 @@ export default function EventDetailPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {participant.user?.full_name || '알 수 없음'}
+                          참가자 {participant.user_id.slice(0, 8)}...
                         </p>
                         <p className="text-sm text-gray-500">
                           {new Date(participant.joined_at).toLocaleDateString('ko-KR')}

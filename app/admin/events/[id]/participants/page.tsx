@@ -63,7 +63,7 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
         .from('event_participants')
         .select(`
           *,
-          user:user_profiles(full_name, email, company, role)
+          user_profiles!event_participants_user_profiles_fkey(full_name, email, company, role)
         `)
         .eq('event_id', eventId)
         .order('joined_at', { ascending: false })
@@ -76,10 +76,10 @@ export default function EventParticipantsPage({ params }: { params: Promise<{ id
       // 데이터 형식 변환
       const formattedParticipants: Participant[] = (data || []).map((item: any) => ({
         id: item.id,
-        name: item.user?.full_name || '알 수 없음',
-        email: item.user?.email || '알 수 없음',
-        company: item.user?.company || '알 수 없음',
-        job: item.user?.role || '알 수 없음',
+        name: item.user_profiles?.full_name || '알 수 없음',
+        email: item.user_profiles?.email || '알 수 없음',
+        company: item.user_profiles?.company || '알 수 없음',
+        job: item.user_profiles?.role || '알 수 없음',
         joinDate: new Date(item.joined_at).toLocaleDateString('ko-KR'),
         status: item.status as "confirmed" | "pending" | "cancelled"
       }))

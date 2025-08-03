@@ -24,7 +24,7 @@ export default function HomePage() {
   }, [])
 
   // 인증 로딩 중이거나 마운트되지 않은 경우
-  if (!mounted || authLoading) {
+  if (!mounted || authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -32,8 +32,8 @@ export default function HomePage() {
     )
   }
 
-  // 사용자가 없는 경우
-  if (!user) {
+  // 사용자가 없는 경우 (로딩이 완료된 후에만 체크)
+  if (!authLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -115,7 +115,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-~
         {/* 내 명함 섹션 - Figma 디자인에 맞춰 수정 */}
         <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-5">
