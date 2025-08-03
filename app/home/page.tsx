@@ -69,10 +69,24 @@ export default function HomePage() {
     return name.charAt(0).toUpperCase()
   }
 
-  // 이벤트 필터링
+  // 이벤트 필터링 - 이벤트 히스토리 페이지와 동일한 로직
   const ongoingEvents = events.filter(event => event.status === 'ongoing')
   const upcomingEvents = events.filter(event => event.status === 'upcoming')
   const completedEvents = events.filter(event => event.status === 'completed')
+
+  // 상태 배지 함수
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'ongoing':
+        return <Badge className="bg-green-100 text-green-800">진행중</Badge>
+      case 'upcoming':
+        return <Badge className="bg-blue-100 text-blue-800">예정</Badge>
+      case 'completed':
+        return <Badge className="bg-gray-100 text-gray-800">종료</Badge>
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -271,9 +285,7 @@ export default function HomePage() {
                     <div key={event.id} className="border border-gray-200 rounded-lg p-5">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-semibold text-gray-900 text-sm">{event.title}</h4>
-                        <Badge className="bg-orange-100 text-orange-800 text-xs">
-                          진행중
-                        </Badge>
+                        {getStatusBadge(event.status || 'upcoming')}
                       </div>
 
                       <div className="space-y-2 mb-4">

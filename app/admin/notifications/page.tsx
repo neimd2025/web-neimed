@@ -19,12 +19,21 @@ interface Notification {
   message: string
   target_type: "all" | "specific" | "event_participants"
   target_event?: string
+  target_event_id?: string
   sent_date?: string
   delivered_count: number
   read_count: number
   status: "draft" | "sent" | "scheduled"
   created_at: string
   updated_at: string
+  target_ids?: string[]
+}
+
+interface Event {
+  id: string
+  title: string
+  event_code: string
+  current_participants: number
 }
 
 export default function AdminNotificationsPage() {
@@ -34,6 +43,7 @@ export default function AdminNotificationsPage() {
   const [filter, setFilter] = useState<"all" | "draft" | "sent" | "scheduled">("all")
   const [isCreating, setIsCreating] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -43,6 +53,29 @@ export default function AdminNotificationsPage() {
     target_type: "all" as "all" | "specific" | "event_participants",
     target_event: ""
   })
+
+  // 이벤트 목록 가져오기
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, event_code, current_participants')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('이벤트 가져오기 오류:', error)
+          return
+        }
+
+        setEvents(data || [])
+      } catch (error) {
+        console.error('이벤트 가져오기 오류:', error)
+      }
+    }
+
+    fetchEvents()
+  }, [supabase])
 
   // 알림 데이터 가져오기
   useEffect(() => {
@@ -96,13 +129,42 @@ export default function AdminNotificationsPage() {
     }
 
     try {
+      let targetIds: string[] = []
+      let targetEventId: string | null = null
+
+      // 이벤트 참가자들에게 알림을 보내는 경우
+      if (newNotification.target_type === "event_participants" && newNotification.target_event) {
+        // 선택된 이벤트의 ID 찾기
+        const selectedEvent = events.find(event => event.title === newNotification.target_event)
+        if (selectedEvent) {
+          targetEventId = selectedEvent.id
+
+          // 해당 이벤트의 참가자 목록 가져오기
+          const { data: participants, error: participantError } = await supabase
+            .from('event_participants')
+            .select('user_id')
+            .eq('event_id', selectedEvent.id)
+            .eq('status', 'confirmed')
+
+          if (participantError) {
+            console.error('참가자 목록 가져오기 오류:', participantError)
+            toast.error('참가자 목록을 가져오는데 실패했습니다.')
+            return
+          }
+
+          targetIds = participants?.map(p => p.user_id) || []
+          console.log('이벤트 참가자 ID 목록:', targetIds)
+        }
+      }
+
       const { data, error } = await supabase
         .from('notifications')
         .insert({
           title: newNotification.title,
           message: newNotification.message,
           target_type: newNotification.target_type,
-          target_event: newNotification.target_event || null,
+          target_event_id: targetEventId,
+          target_ids: targetIds.length > 0 ? targetIds : null,
           sent_date: new Date().toISOString(),
           delivered_count: 0,
           read_count: 0,
@@ -120,7 +182,7 @@ export default function AdminNotificationsPage() {
       setNotifications(prev => [data, ...prev])
       setNewNotification({ title: "", message: "", target_type: "all", target_event: "" })
       setIsCreating(false)
-      toast.success('알림이 성공적으로 전송되었습니다.')
+      toast.success(`알림이 성공적으로 전송되었습니다. (대상: ${targetIds.length}명)`)
     } catch (error) {
       console.error('알림 전송 오류:', error)
       toast.error('알림 전송에 실패했습니다.')
@@ -234,9 +296,11 @@ export default function AdminNotificationsPage() {
                       className="w-full border-2 border-gray-200 focus:border-purple-500 rounded-lg px-3 py-2 bg-white"
                     >
                       <option value="">이벤트를 선택하세요</option>
-                      <option value="Neimd 네트워킹 데모 이벤트">Neimd 네트워킹 데모 이벤트</option>
-                      <option value="스타트업 네트워킹 밋업">스타트업 네트워킹 밋업</option>
-                      <option value="개발자 커뮤니티 모임">개발자 커뮤니티 모임</option>
+                      {events.map((event) => (
+                        <option key={event.id} value={event.title}>
+                          {event.title} (코드: {event.event_code}, 참가자: {event.current_participants}명)
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -330,7 +394,7 @@ export default function AdminNotificationsPage() {
                           <div className="flex items-center gap-2 text-gray-600">
                             <span>
                               {notification.target_type === "all" && "전체 사용자"}
-                              {notification.target_type === "event_participants" && `이벤트: ${notification.target_event}`}
+                              {notification.target_type === "event_participants" && `이벤트: ${notification.target_event_id || 'N/A'}`}
                               {notification.target_type === "specific" && "특정 사용자"}
                             </span>
                           </div>

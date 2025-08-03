@@ -18,12 +18,15 @@ interface Notification {
   user_id: string
   target_type?: string
   target_id?: string
+  target_ids?: string[]
+  message: string
 }
 
 export default function NotificationsPage() {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [isConnected, setIsConnected] = useState(false)
   const supabase = createClient()
 
   // 알림 데이터 가져오기
@@ -33,10 +36,21 @@ export default function NotificationsPage() {
 
       try {
         setLoading(true)
+        console.log('알림 가져오기 시작, 사용자 ID:', user.id)
+
+        // 먼저 모든 알림을 가져와서 확인
+        const { data: allNotifications, error: allError } = await supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        console.log('모든 알림 데이터:', allNotifications)
+
+        // 사용자 ID가 target_ids 배열에 포함된 알림들을 가져옴
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
-          .eq('user_id', user.id)
+          .or(`target_ids.cs.{${user.id}},target_type.eq.all`)
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -45,6 +59,7 @@ export default function NotificationsPage() {
           return
         }
 
+        console.log('필터링된 알림 데이터:', data)
         setNotifications(data || [])
       } catch (error) {
         console.error('알림 가져오기 오류:', error)
@@ -57,19 +72,55 @@ export default function NotificationsPage() {
     fetchNotifications()
   }, [user, supabase])
 
-  // 실시간 공지 수신을 위한 useEffect
+  // 실시간 알림 수신을 위한 useEffect
   useEffect(() => {
-    const channel = supabase.channel('notifications')
-      .on('broadcast', { event: 'new_notification' }, (payload) => {
-        setNotifications((prev) => [payload.notification, ...prev]);
-        toast.success('새 공지가 도착했습니다!');
+    if (!user) return
+
+    console.log('실시간 알림 구독 시작, 사용자 ID:', user.id)
+    setIsConnected(true)
+
+    const channel = supabase.channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `target_ids=cs.{${user.id}}`
+        },
+        (payload) => {
+          console.log('새 알림 실시간 수신 (특정 사용자):', payload.new)
+          const newNotification = payload.new as Notification
+          setNotifications((prev) => [newNotification, ...prev])
+          toast.success('새 알림이 도착했습니다!')
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `target_type=eq.all`
+        },
+        (payload) => {
+          console.log('전체 공지 실시간 수신:', payload.new)
+          const newNotification = payload.new as Notification
+          setNotifications((prev) => [newNotification, ...prev])
+          toast.success('새 공지가 도착했습니다!')
+        }
+      )
+      .subscribe((status) => {
+        console.log('실시간 구독 상태:', status)
+        setIsConnected(status === 'SUBSCRIBED')
       })
-      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      console.log('실시간 알림 구독 해제')
+      supabase.removeChannel(channel)
+      setIsConnected(false)
+    }
+  }, [user, supabase])
 
   // 알림 읽음 처리 함수
   const markAsRead = async (notificationId: string) => {
@@ -80,7 +131,6 @@ export default function NotificationsPage() {
         .from('notifications')
         .update({ read_at: new Date().toISOString() })
         .eq('id', notificationId)
-        .eq('user_id', user.id)
 
       if (error) {
         console.error('알림 읽음 처리 오류:', error)
@@ -155,6 +205,17 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-white pb-24">
       <MobileHeader title="최근 활동 및 알림" showMenuButton />
 
+      {/* 디버깅 정보 (개발용) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="px-4 py-2 bg-yellow-50 border-b border-yellow-200">
+          <p className="text-xs text-yellow-800">
+            디버그: 연결 상태: {isConnected ? '연결됨' : '연결 안됨'} |
+            알림 수: {notifications.length} |
+            사용자 ID: {user?.id}
+          </p>
+        </div>
+      )}
+
       <div className="px-4 py-6 space-y-4">
         {loading ? (
           <p className="text-center py-8">알림을 불러오는 중입니다...</p>
@@ -195,7 +256,7 @@ export default function NotificationsPage() {
                           {!notification.read_at && <div className="w-2 h-2 bg-purple-600 rounded-full"></div>}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{notification.description}</p>
+                      <p className="text-sm text-gray-600 mt-1">{notification.message || notification.description}</p>
                       <p className="text-xs text-gray-500 mt-2">{formatTime(notification.created_at)}</p>
                     </div>
                   </div>
