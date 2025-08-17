@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { calculateEventStatus, eventAPI } from '@/lib/supabase/database'
 import { logError } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
-import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User, Users } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -24,6 +24,11 @@ interface Event {
   current_participants: number | null
   max_participants: number | null
   event_code: string | null
+  image_url: string | null
+  organizer_name: string | null
+  organizer_email: string | null
+  organizer_phone: string | null
+  organizer_kakao: string | null
   created_at: string | null
   created_by: string | null
   updated_at: string | null
@@ -235,19 +240,82 @@ export default function EventDetailPage() {
       </div>
 
       <div className="px-5 py-6 space-y-6">
+        {/* 이벤트 헤더 */}
+        <div className="space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">{event.title}</h1>
+              {getStatusBadge(event)}
+            </div>
+          </div>
+
+          <p className="text-gray-600 text-base leading-relaxed">{event.description}</p>
+        </div>
+
+        {/* 이벤트 이미지 */}
+        {event.image_url && (
+          <div className="relative">
+            <img
+              src={event.image_url}
+              alt={event.title}
+              className="w-full h-64 object-cover rounded-xl"
+            />
+          </div>
+        )}
+
         {/* 이벤트 정보 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 이벤트 현황 */}
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg">이벤트 현황</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">{event.current_participants || 0}</div>
+                  <div className="text-sm text-blue-600">참가자</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{event.max_participants || 0}</div>
+                  <div className="text-sm text-green-600">최대인원</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 주최자 정보 */}
+          <Card className="border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg">주최자 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{event.organizer_name || 'Neimed 팀'}</p>
+                  <p className="text-sm text-gray-500">이벤트 생성자</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>📧 {event.organizer_email || 'support@neimed.com'}</p>
+                <p>📞 {event.organizer_phone || '02-1234-5678'}</p>
+                {event.organizer_kakao && (
+                  <p>💬 {event.organizer_kakao}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 이벤트 상세 정보 */}
         <Card className="border-gray-200">
           <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-xl mb-2">{event.title}</CardTitle>
-                {getStatusBadge(event)}
-              </div>
-            </div>
+            <CardTitle className="text-lg">이벤트 상세 정보</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-gray-600">{event.description}</p>
-
+          <CardContent>
             <div className="grid grid-cols-1 gap-4">
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-gray-500" />
@@ -287,15 +355,15 @@ export default function EventDetailPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">참가자</p>
-                  <p className="font-medium">
-                    {event.current_participants || 0} / {event.max_participants || 0}명
-                  </p>
+              {event.event_code && (
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 text-gray-500">🎫</div>
+                  <div>
+                    <p className="text-sm text-gray-500">이벤트 코드</p>
+                    <p className="font-medium">{event.event_code}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -343,7 +411,7 @@ export default function EventDetailPage() {
         </Card>
 
         {/* 액션 버튼들 */}
-        <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           {isParticipant ? (
             <Button
               className="flex-1 bg-green-600 hover:bg-green-700"
@@ -367,17 +435,7 @@ export default function EventDetailPage() {
               명함 스캔하기
             </Button>
           </Link>
-        </div>
-
-        {/* QR 코드 스캔 안내 */}
-        <Card className="bg-purple-50 border-purple-200">
-          <CardContent className="p-4">
-            <h3 className="font-medium text-purple-900 mb-2">💡 팁</h3>
-            <p className="text-sm text-purple-700">
-              다른 참가자들의 명함을 스캔하여 네트워킹을 시작해보세요!
-            </p>
-          </CardContent>
-        </Card>
+        </div> */}
       </div>
     </div>
   )

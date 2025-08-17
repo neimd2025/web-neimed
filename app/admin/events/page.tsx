@@ -22,10 +22,15 @@ interface Event {
   location: string
   status: "upcoming" | "ongoing" | "completed"
   max_participants: number
+  current_participants?: number
   event_code: string
   created_at: string
   updated_at: string
   image_url?: string
+  organizer_name?: string
+  organizer_email?: string
+  organizer_phone?: string
+  organizer_kakao?: string
 }
 
 interface Participant {
@@ -359,7 +364,20 @@ export default function AdminEventsPage() {
                 <Card key={event.id} className="overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0">
                   <div className="relative">
                     {/* 이벤트 이미지 */}
-                    <div className="h-32 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 relative">
+                    <div className="h-32 relative overflow-hidden">
+                      {event.image_url ? (
+                        <img
+                          src={event.image_url}
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 flex items-center justify-center">
+                          <Calendar className="h-8 w-8 text-white opacity-50" />
+                        </div>
+                      )}
+
+                      {/* 오버레이 및 상태 배지 */}
                       <div className="absolute top-3 left-3 flex items-center gap-2">
                         {getStatusBadge(event)}
                       </div>
@@ -387,7 +405,7 @@ export default function AdminEventsPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-4 w-4" />
-                            <span>최대: {event.max_participants}명</span>
+                            <span>{event.current_participants || 0}/{event.max_participants}명</span>
                           </div>
                         </div>
                       </div>

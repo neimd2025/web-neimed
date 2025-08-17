@@ -4,21 +4,59 @@ import { Button } from '@/components/ui/button'
 import jsQR from 'jsqr'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
+import { toast } from 'sonner'
 
 export default function ScanCardPage() {
+  const router = useRouter()
   const [isFlashOn, setIsFlashOn] = useState(false)
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const webcamRef = useRef<Webcam>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // 컴포넌트 마운트 시 바로 카메라 활성화
+  // 카메라 권한 요청 및 활성화
   useEffect(() => {
-    setIsCameraActive(true)
-    setIsScanning(true)
+    const initializeCamera = async () => {
+      try {
+        setIsLoading(true)
+        setCameraError(null)
+
+        // 카메라 권한 확인
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          })
+
+          console.log('카메라 권한 획득 성공')
+          setIsCameraActive(true)
+          setIsScanning(true)
+
+          // 스트림 정리
+          stream.getTracks().forEach(track => track.stop())
+        } else {
+          throw new Error('카메라를 지원하지 않는 브라우저입니다.')
+        }
+      } catch (error: any) {
+        console.error('카메라 초기화 오류:', error)
+        setCameraError(error.message || '카메라를 시작할 수 없습니다.')
+        setIsCameraActive(false)
+        setIsScanning(false)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeCamera()
   }, [])
 
   // QR 코드 감지 시 처리
@@ -26,31 +64,44 @@ export default function ScanCardPage() {
     setIsScanning(false)
     console.log('QR 코드 데이터:', qrData)
 
-    // 여기서 QR 코드 데이터를 파싱하여 명함 정보 추출
+    // QR 코드 데이터를 파싱하여 명함 정보 추출
     try {
       const cardData = JSON.parse(qrData)
       // 명함 데이터 처리 및 저장
       console.log('명함 데이터:', cardData)
 
       // 성공 메시지 표시 후 명함 상세 페이지로 이동
-      alert('명함이 성공적으로 스캔되었습니다!')
-      // 실제로는 여기서 명함 데이터를 저장하고 상세 페이지로 이동
-      // router.push(`/saved-cards/${cardData.id}`)
+      toast.success('명함이 성공적으로 스캔되었습니다!')
+      router.push(`/business-card/${cardData.id}`)
     } catch (error) {
       console.error('QR 코드 파싱 오류:', error)
 
       // QR 코드가 JSON이 아닌 경우 다른 형식으로 처리
-      if (qrData.startsWith('named.link/')) {
-        // 공유 링크 형식인 경우
-        const cardId = qrData.split('/').pop()
+      if (qrData.startsWith('http') && qrData.includes('/business-card/')) {
+        // 명함 상세 페이지 링크인 경우
+        const cardId = qrData.split('/business-card/').pop()?.split('?')[0]
         console.log('명함 링크 감지:', cardId)
-        alert('명함 링크가 감지되었습니다!')
-        // router.push(`/business-card/${cardId}`)
+        if (cardId) {
+          toast.success('명함 링크가 감지되었습니다!')
+          router.push(`/business-card/${cardId}`)
+        } else {
+          toast.error('유효하지 않은 명함 링크입니다.')
+        }
+      } else if (qrData.includes('/business-card/')) {
+        // 상대 경로인 경우
+        const cardId = qrData.split('/business-card/').pop()
+        console.log('명함 ID 감지:', cardId)
+        if (cardId) {
+          toast.success('명함이 감지되었습니다!')
+          router.push(`/business-card/${cardId}`)
+        } else {
+          toast.error('유효하지 않은 QR 코드입니다.')
+        }
       } else {
-        alert('유효하지 않은 QR 코드입니다.')
+        toast.error('유효하지 않은 QR 코드입니다.')
       }
     }
-  }, [])
+  }, [router])
 
   // QR 코드 스캔
   const scanQRCode = useCallback(() => {
@@ -206,6 +257,72 @@ export default function ScanCardPage() {
     console.log('QR 스캔 시뮬레이션 - 실제 구현에서는 카메라로 QR 코드를 스캔합니다.')
   }, [])
 
+  // 카메라 재시작 함수
+  const restartCamera = () => {
+    setCameraError(null)
+    setIsLoading(true)
+    setIsCameraActive(false)
+    setIsScanning(false)
+
+    setTimeout(() => {
+      setIsCameraActive(true)
+      setIsScanning(true)
+      setIsLoading(false)
+    }, 1000)
+  }
+
+  // 로딩 중
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p>카메라를 시작하는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 카메라 오류
+  if (cameraError) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="text-center text-white px-6">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">📷</span>
+            </div>
+            <h2 className="text-xl font-bold mb-2">카메라 접근 오류</h2>
+            <p className="text-gray-300 mb-4">{cameraError}</p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              onClick={restartCamera}
+              className="w-full bg-purple-600 hover:bg-purple-700"
+            >
+              다시 시도
+            </Button>
+
+            <Button
+              onClick={handleGallerySelect}
+              variant="outline"
+              className="w-full border-white text-white hover:bg-white hover:text-black"
+            >
+              갤러리에서 선택
+            </Button>
+
+            <Link href="/home">
+              <Button variant="ghost" className="w-full text-gray-400">
+                홈으로 돌아가기
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 bg-black">
       {/* 숨겨진 캔버스 (QR 스캔용) */}
@@ -220,32 +337,49 @@ export default function ScanCardPage() {
             </Button>
           </Link>
           <h1 className="text-lg font-bold text-white">명함 스캔</h1>
-          <div></div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2 bg-white/10 hover:bg-white/20"
+              onClick={handleGallerySelect}
+            >
+              📁
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* 카메라 뷰 - 전체 화면 */}
       <div className="absolute inset-0">
-        <Webcam
-          ref={webcamRef}
-          audio={false}
-          screenshotFormat="image/jpeg"
-          className="w-full h-full object-cover"
-          videoConstraints={{
-            width: 1280,
-            height: 720,
-            facingMode: "environment" // 후면 카메라 사용
-          }}
-          onUserMedia={() => {
-            console.log('카메라가 로드되었습니다.')
-            // 카메라 로드 후 QR 스캔 시작
-            if (isScanning) {
-              setTimeout(() => {
-                scanQRCode()
-              }, 500)
-            }
-          }}
-        />
+        {isCameraActive && (
+          <Webcam
+            ref={webcamRef}
+            audio={false}
+            screenshotFormat="image/jpeg"
+            className="w-full h-full object-cover"
+            videoConstraints={{
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "environment" // 후면 카메라 사용
+            }}
+            onUserMedia={() => {
+              console.log('카메라가 로드되었습니다.')
+              // 카메라 로드 후 QR 스캔 시작
+              if (isScanning) {
+                setTimeout(() => {
+                  scanQRCode()
+                }, 500)
+              }
+            }}
+            onUserMediaError={(error) => {
+              console.error('카메라 오류:', error)
+              setCameraError('카메라를 시작할 수 없습니다. 권한을 확인해주세요.')
+              setIsCameraActive(false)
+              setIsScanning(false)
+            }}
+          />
+        )}
 
         {/* 스캔 프레임 오버레이 */}
         <div className="absolute inset-0 flex items-center justify-center">

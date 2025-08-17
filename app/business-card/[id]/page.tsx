@@ -21,6 +21,7 @@ export default function PublicBusinessCardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [card, setCard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isOwnCard, setIsOwnCard] = useState(false)
   const supabase = createClient()
 
   // 명함 데이터 가져오기
@@ -30,31 +31,47 @@ export default function PublicBusinessCardPage() {
 
       try {
         setLoading(true)
-        const { data, error } = await supabase
+        // 먼저 business_cards만 조회
+        const { data: cardData, error: cardError } = await supabase
           .from('business_cards')
-          .select(`
-            *,
-            user_profiles!inner(
-              full_name,
-              contact,
-              company,
-              role,
-              mbti,
-              keywords,
-              introduction,
-              profile_image_url
-            )
-          `)
+          .select('*')
           .eq('id', cardId)
           .single()
 
-        if (error) {
-          console.error('명함 가져오기 오류:', error)
+        if (cardError) {
+          console.error('명함 가져오기 오류:', cardError)
           toast.error('명함을 불러오는데 실패했습니다.')
           return
         }
 
-        setCard(data)
+        // user_profiles 데이터가 있으면 별도로 조회
+        let profileData = null
+        if (cardData.user_id) {
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('full_name, contact, company, role, mbti, keywords, introduction, profile_image_url')
+            .eq('id', cardData.user_id)
+            .single()
+
+          if (!profileError) {
+            profileData = profile
+          }
+        }
+
+        // 데이터 합치기
+        const combinedData = {
+          ...cardData,
+          user_profiles: profileData
+        }
+
+        setCard(combinedData)
+
+        // 명함 소유자 확인
+        if (user && cardData.user_id === user.id) {
+          setIsOwnCard(true)
+        } else {
+          setIsOwnCard(false)
+        }
       } catch (error) {
         console.error('명함 가져오기 오류:', error)
         toast.error('명함을 불러오는데 실패했습니다.')
@@ -75,15 +92,17 @@ export default function PublicBusinessCardPage() {
         const { data, error } = await supabase
           .from('collected_cards')
           .select('*')
-          .eq('user_id', user.id)
-          .eq('business_card_id', cardId)
-          .single()
+          .eq('collector_id', user.id)
+          .eq('card_id', cardId)
+          .maybeSingle() // single() 대신 maybeSingle() 사용
 
         if (!error && data) {
           setIsCollected(true)
+        } else {
+          setIsCollected(false)
         }
       } catch (error) {
-        // 수집되지 않은 경우
+        console.log('수집 상태 확인 중 오류 (정상적인 경우):', error)
         setIsCollected(false)
       }
     }
@@ -101,9 +120,10 @@ export default function PublicBusinessCardPage() {
       const { error } = await supabase
         .from('collected_cards')
         .insert({
-          user_id: user.id,
-          business_card_id: card.id,
-          collected_at: new Date().toISOString()
+          collector_id: user.id,
+          card_id: card.id,
+          collected_at: new Date().toISOString(),
+          is_favorite: false
         })
 
       if (error) {
@@ -118,7 +138,7 @@ export default function PublicBusinessCardPage() {
       // 성공 메시지 표시 후 수집된 명함 목록으로 이동
       setTimeout(() => {
         router.push('/saved-cards')
-      }, 1500)
+      }, 1000)
 
     } catch (error) {
       console.error('명함 수집 중 오류:', error)
@@ -212,35 +232,60 @@ export default function PublicBusinessCardPage() {
           <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 mb-6">
             {/* 프로필 섹션 */}
             <div className="text-center mb-6">
-              <div className={`w-24 h-24 bg-gradient-to-br ${card.avatarColor} rounded-full mx-auto mb-5 flex items-center justify-center`}>
-                <span className="text-white font-bold text-3xl">{card.avatar}</span>
+              <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full mx-auto mb-5 flex items-center justify-center">
+                <span className="text-white font-bold text-3xl">
+                  {card.full_name ? card.full_name.charAt(0).toUpperCase() : 'U'}
+                </span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{card.full_name}</h2>
-              <p className="text-gray-600 text-base mb-4">{card.introduction}</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {card.full_name || card.user_profiles?.full_name || '사용자'}
+              </h2>
+              <p className="text-gray-600 text-base mb-4">
+                {card.introduction || card.user_profiles?.introduction || ''}
+              </p>
               <div className="space-y-2 text-sm text-gray-500">
-                {card.age && <p>{card.age}</p>}
-                {(card.company || card.role) && (
-                  <p>{card.company} / {card.role}</p>
+                {(card.company || card.user_profiles?.company || card.role || card.user_profiles?.role) && (
+                  <p>
+                    {card.company || card.user_profiles?.company || ''}
+                    {(card.company || card.user_profiles?.company) && (card.role || card.user_profiles?.role) && ' / '}
+                    {card.role || card.user_profiles?.role || ''}
+                  </p>
                 )}
-                {card.mbti && <p>MBTI: {card.mbti}</p>}
+                {(card.mbti || card.user_profiles?.mbti) && (
+                  <p>MBTI: {card.mbti || card.user_profiles?.mbti}</p>
+                )}
               </div>
             </div>
 
-            {/* 태그 섹션들 */}
-            <div className="space-y-6">
-              {/* 성격 */}
-              {card.keywords && card.keywords.length > 0 && (
+            {/* 연락처 정보 */}
+            <div className="space-y-4">
+              {(card.contact || card.user_profiles?.contact || card.email) && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">연락처</h3>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    {card.contact || card.user_profiles?.contact && (
+                      <p>📞 {card.contact || card.user_profiles?.contact}</p>
+                    )}
+                    {card.email && (
+                      <p>📧 {card.email}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 키워드/태그 */}
+              {(card.keywords && card.keywords.length > 0) || (card.user_profiles?.keywords && card.user_profiles.keywords.length > 0) ? (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">키워드</h3>
                   <div className="flex flex-wrap justify-center gap-2">
-                    {card.keywords.map((keyword: string, index: number) => (
+                    {(card.keywords || card.user_profiles?.keywords || []).map((keyword: string, index: number) => (
                       <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
                         {keyword}
                       </Badge>
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* 외부 링크 */}
               {card.external_link && (
@@ -249,45 +294,69 @@ export default function PublicBusinessCardPage() {
                   <p className="text-gray-500 text-sm">{card.external_link}</p>
                 </div>
               )}
-
-              {/* 공유 링크 */}
-              <div className="text-center">
-                <p className="text-purple-600 text-sm font-medium">{card.shareLink}</p>
-              </div>
             </div>
           </div>
         </motion.div>
+         <div className=" w-full max-w-md px-5 py-6 bg-white border-t border-gray-200 shadow-lg">
+        {!user ? (
+          // 로그인하지 않은 경우
+          <Button
+            className="w-full h-15 font-semibold text-lg bg-purple-600 hover:bg-purple-700 text-white"
+            onClick={() => router.push('/login')}
+          >
+            로그인하여 명함 수집하기
+          </Button>
+        ) : isOwnCard ? (
+          // 자신의 명함인 경우
+          <div className="space-y-3">
+            <Button
+              className="w-full h-15 font-semibold text-lg bg-purple-600 hover:bg-purple-700 text-white"
+              onClick={() => router.push('/my-namecard')}
+            >
+              내 명함 관리하기
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-12 font-medium border-purple-600 text-purple-600 hover:bg-purple-50"
+              onClick={() => router.push('/my-qr')}
+            >
+              내 QR코드 보기
+            </Button>
+          </div>
+        ) : (
+          // 다른 사람의 명함인 경우
+          <Button
+            className={`w-full h-15 font-semibold text-lg ${
+              isCollected
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
+            disabled={isLoading || isCollected}
+            onClick={handleCollectCard}
+          >
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                수집 중...
+              </div>
+            ) : isCollected ? (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                수집 완료
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                명함 수집하기
+              </>
+            )}
+          </Button>
+        )}
+      </div>
       </div>
 
       {/* 하단 고정 버튼 */}
-      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md px-5 py-6 bg-white border-t border-gray-200 shadow-lg">
-        <Button
-          className={`w-full h-15 font-semibold text-lg ${
-            isCollected
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-purple-600 hover:bg-purple-700 text-white'
-          }`}
-          disabled={isLoading || isCollected}
-          onClick={handleCollectCard}
-        >
-          {isLoading ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              수집 중...
-            </div>
-          ) : isCollected ? (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              수집 완료
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              명함 수집하기
-            </>
-          )}
-        </Button>
-      </div>
+
     </div>
   )
 }

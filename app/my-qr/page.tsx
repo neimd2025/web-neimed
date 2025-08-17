@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useBusinessCards } from "@/hooks/use-business-cards"
 import { useUserProfile } from "@/hooks/use-user-profile"
+import { generateQRCodeUrl } from "@/lib/utils"
 import { Download, MapPin, Share } from "lucide-react"
 import { useRouter } from "next/navigation"
 import QRCode from "qrcode"
@@ -25,9 +26,8 @@ export default function MyQRPage() {
       }
 
       try {
-        // 실제 사이트 URL을 사용하여 QR 코드 생성
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3000")
-        const qrCodeUrl = `${siteUrl}/business-card/${userCard.id}`
+        // 유틸리티 함수를 사용하여 QR 코드 URL 생성
+        const qrCodeUrl = generateQRCodeUrl(userCard.id)
         setQrUrl(qrCodeUrl)
 
         const url = await QRCode.toDataURL(qrCodeUrl, {

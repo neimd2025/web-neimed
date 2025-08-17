@@ -2,8 +2,9 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { eventAPI, calculateEventStatus, filterEventsByStatus } from '@/lib/supabase/database'
+import { Card } from '@/components/ui/card'
+import { calculateEventStatus, filterEventsByStatus } from '@/lib/supabase/database'
+import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -25,9 +26,38 @@ export default function EventHistoryPage() {
       try {
         setLoading(true)
 
-                        // 이벤트 데이터 가져오기
-        const eventsData = await eventAPI.getAllEvents()
-        setEvents(eventsData)
+        // 사용자가 참가한 이벤트만 가져오기
+        const { data, error } = await createClient()
+          .from('event_participants')
+          .select(`
+            events (
+              id,
+              title,
+              description,
+              start_date,
+              end_date,
+              location,
+              max_participants,
+              current_participants,
+              event_code,
+              image_url,
+              organizer_name,
+              organizer_email,
+              organizer_phone,
+              organizer_kakao,
+              created_at
+            )
+          `)
+          .order('joined_at', { ascending: false })
+
+        if (error) {
+          console.error('참가 이벤트 로드 오류:', error)
+          return
+        }
+
+        // events 데이터 추출
+        const userEvents = data?.map((item: any) => item.events).filter(Boolean) || []
+        setEvents(userEvents)
       } catch (error) {
         console.error('Error loading events:', error)
       } finally {
@@ -110,16 +140,53 @@ export default function EventHistoryPage() {
         <div className="space-y-4">
           {filteredEvents.length > 0 ? (
             filteredEvents.map((event) => (
-              <Card key={event.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">{event.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+              <Card key={event.id} className="overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0">
+                <div className="relative">
+                  {/* 이벤트 이미지 */}
+                  <div className="h-32 relative overflow-hidden">
+                    {event.image_url ? (
+                      <img
+                        src={event.image_url}
+                        alt={event.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 flex items-center justify-center">
+                        <Calendar className="h-8 w-8 text-white opacity-50" />
+                      </div>
+                    )}
 
+                    {/* 오버레이 및 상태 배지 */}
+                    <div className="absolute top-3 left-3 flex items-center gap-2">
+                      {getStatusBadge(event)}
+                      <span className="text-white text-xs bg-black bg-opacity-30 px-2 py-1 rounded-full">
+                        {new Date(event.start_date).toLocaleDateString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })}. 제출
+                      </span>
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <Button variant="ghost" size="sm" className="bg-black bg-opacity-20 hover:bg-opacity-30 text-white">
+                        <Users className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <div className="flex items-center gap-2 text-white">
+                        <MapPin className="h-4 w-4" />
+                        <span className="text-sm font-medium">{event.location || "온라인"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 이벤트 정보 */}
+                  <div className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">{event.title}</h3>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="h-4 w-4" />
                           <span>{new Date(event.start_date).toLocaleString('ko-KR', {
                             year: 'numeric',
                             month: '2-digit',
@@ -129,31 +196,41 @@ export default function EventHistoryPage() {
                             timeZone: 'Asia/Seoul'
                           })}</span>
                         </div>
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{event.location}</span>
-                          </div>
-                        )}
                         <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          <span>{event.current_participants || 0}/{event.max_participants || 0}명</span>
+                          <Users className="h-4 w-4" />
+                          <span>제출자: {event.current_participants || 0}명</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(event)}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500">코드:</span>
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-700">
+                          {event.event_code}
+                        </code>
+                      </div>
+                      <div className="w-4 h-4 border border-purple-600 rounded-sm relative">
+                        <div className="absolute inset-0.5 border border-purple-600 rounded-sm"></div>
+                        <div className="absolute top-0.5 left-0.5 w-0.5 h-0.5 bg-purple-600 rounded-full"></div>
+                        <div className="absolute bottom-0.5 right-0.5 w-0.5 h-0.5 bg-purple-600 rounded-full"></div>
+                      </div>
+                    </div>
+
+                    {/* 상세보기 버튼 */}
+                    <div className="flex justify-center">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-200"
                         onClick={() => router.push(`/events/${event.id}`)}
                       >
+                        <Users className="h-4 w-4" />
                         상세보기
                       </Button>
                     </div>
                   </div>
-                </CardContent>
+                </div>
               </Card>
             ))
           ) : (
@@ -162,7 +239,7 @@ export default function EventHistoryPage() {
                 <Calendar className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {activeTab} 이벤트가 없습니다
+                {activeTab} 참가 이벤트가 없습니다
               </h3>
               <p className="text-gray-600 text-sm">
                 새로운 이벤트에 참가해보세요!

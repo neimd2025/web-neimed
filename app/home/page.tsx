@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { businessCardAPI, collectedCardAPI, userProfileAPI, calculateEventStatus, filterEventsByStatus } from '@/lib/supabase/database'
+import { businessCardAPI, calculateEventStatus, collectedCardAPI, filterEventsByStatus, userProfileAPI } from '@/lib/supabase/database'
 import { createClient } from '@/utils/supabase/client'
 import { Calendar, Camera, Star } from 'lucide-react'
 import Link from 'next/link'
@@ -31,22 +31,45 @@ export default function HomePage() {
     }
   }
 
-      // 이벤트 데이터 로드
+      // 사용자가 참가한 이벤트 데이터 로드
   const loadEvents = async () => {
+    if (!user?.id) return
+
     try {
+      // 사용자가 참가한 이벤트만 가져오기
       const { data, error } = await createClient()
-        .from('events')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .from('event_participants')
+        .select(`
+          events (
+            id,
+            title,
+            description,
+            start_date,
+            end_date,
+            location,
+            max_participants,
+            current_participants,
+            image_url,
+            organizer_name,
+            organizer_email,
+            organizer_phone,
+            organizer_kakao,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('joined_at', { ascending: false })
 
       if (error) {
-        console.error('이벤트 로드 오류:', error)
+        console.error('참가 이벤트 로드 오류:', error)
         return
       }
 
-      setEvents(data || [])
+      // events 데이터 추출
+      const userEvents = data?.map((item: any) => item.events).filter(Boolean) || []
+      setEvents(userEvents)
     } catch (error) {
-      console.error('이벤트 로드 오류:', error)
+      console.error('참가 이벤트 로드 오류:', error)
     }
   }
 
@@ -324,7 +347,7 @@ export default function HomePage() {
                   ))
                 ) : (
                   <div className="text-center py-8 text-gray-500 text-sm">
-                    {activeTab} 이벤트가 없습니다
+                    {activeTab} 참가 이벤트가 없습니다
                   </div>
                 )
               })()}

@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
-import { calculateEventStatus } from '@/lib/supabase/database'
 import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
@@ -13,9 +12,10 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 export default function EventJoinPage() {
   const { user } = useAuth()
-  const { findEventByCode, events } = useEvents()
+  const { findEventByCode } = useEvents()
   const [eventCode, setEventCode] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
+  const [recentEvents, setRecentEvents] = useState<any[]>([])
   const router = useRouter()
 
 
@@ -23,12 +23,15 @@ export default function EventJoinPage() {
   const handleCodeChange = (index: number, value: string) => {
     if (value.length > 1) return // 한 글자만 입력 가능
 
+    // 소문자를 대문자로 변환
+    const upperValue = value.toUpperCase()
+
     const newCode = [...eventCode]
-    newCode[index] = value
+    newCode[index] = upperValue
     setEventCode(newCode)
 
     // 다음 입력 필드로 자동 이동
-    if (value && index < 5) {
+    if (upperValue && index < 5) {
       const nextInput = document.getElementById(`code-${index + 1}`) as HTMLInputElement
       if (nextInput) {
         nextInput.focus()
@@ -43,6 +46,49 @@ export default function EventJoinPage() {
       if (prevInput) {
         prevInput.focus()
       }
+    }
+  }
+
+  // 사용자가 참가한 이벤트 가져오기
+  const fetchUserEvents = async () => {
+    if (!user?.id) return
+
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('event_participants')
+        .select(`
+          events (
+            id,
+            title,
+            start_date,
+            end_date,
+            location,
+            max_participants,
+            current_participants,
+            event_code,
+            image_url,
+            organizer_name,
+            organizer_email,
+            organizer_phone,
+            organizer_kakao,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('joined_at', { ascending: false })
+        .limit(3)
+
+      if (error) {
+        console.error('참가 이벤트 가져오기 오류:', error)
+        return
+      }
+
+      // events 데이터 추출
+      const userEvents = data?.map((item: any) => item.events).filter(Boolean) || []
+      setRecentEvents(userEvents)
+    } catch (error) {
+      console.error('참가 이벤트 가져오기 오류:', error)
     }
   }
 
@@ -113,6 +159,7 @@ export default function EventJoinPage() {
       }
 
       toast.success('이벤트에 참가했습니다!')
+      refreshUserEvents() // 최근 이벤트 목록 새로고침
       router.push(`/events/${event.id}`)
     } catch (error) {
       console.error('이벤트 참가 오류:', error)
@@ -122,7 +169,15 @@ export default function EventJoinPage() {
     }
   }
 
-  const recentEvents = events.slice(0, 3)
+  // 페이지 로드 시 사용자 참가 이벤트 가져오기
+  useEffect(() => {
+    fetchUserEvents()
+  }, [user])
+
+  // 이벤트 참가 성공 후 최근 이벤트 목록 새로고침
+  const refreshUserEvents = () => {
+    fetchUserEvents()
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -165,6 +220,7 @@ export default function EventJoinPage() {
               onChange={(e) => handleCodeChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               className="w-12 h-14 text-center text-lg font-mono border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+              style={{ textTransform: 'uppercase' }}
               maxLength={1}
               autoComplete="off"
             />

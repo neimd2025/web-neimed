@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Calendar, Clock, Upload } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, Upload, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from 'react-hook-form'
@@ -28,7 +28,7 @@ const eventSchema = z.object({
     const num = parseInt(val)
     return !isNaN(num) && num > 0 && num <= 1000
   }, '최대 참가자 수는 1명 이상 1000명 이하여야 합니다'),
-  eventCode: z.string().optional()
+
 }).refine((data) => {
   const startDateTime = new Date(`${data.startDate}T${data.startTime}`)
   const endDateTime = new Date(`${data.endDate}T${data.endTime}`)
@@ -44,6 +44,8 @@ export default function NewEventPage() {
   const router = useRouter()
   const { adminUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const {
     register,
@@ -59,33 +61,68 @@ export default function NewEventPage() {
     return null
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const uploadImage = async (file: File, eventCode: string, startDate: string): Promise<string | null> => {
+    try {
+      const supabase = createClient()
+      const fileExt = file.name.split('.').pop()
+
+      // 이벤트 코드와 날짜를 포함한 구조화된 경로 생성
+      const dateStr = startDate.replace(/-/g, '') // YYYYMMDD 형식
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, -5) // YYYYMMDDTHHMMSS 형식
+
+      const fileName = `${eventCode}_${dateStr}_${timestamp}.${fileExt}`
+      const filePath = `events/${eventCode}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        console.error('이미지 업로드 오류:', uploadError)
+        return null
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath)
+
+      return publicUrl
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error)
+      return null
+    }
+  }
+
   const onSubmit = async (data: EventFormData) => {
     setIsLoading(true)
 
     try {
       const supabase = createClient()
 
-      // 이벤트 코드 자동 생성 (입력되지 않은 경우)
-      let eventCode = data.eventCode
-      if (!eventCode) {
-        eventCode = Math.random().toString(36).substring(2, 8).toUpperCase()
-      }
+      // 이벤트 코드 자동 생성
+      const eventCode = Math.random().toString(36).substring(2, 8).toUpperCase()
 
       // 한국 시간으로 저장 (UTC 변환 없이)
       const startDateTime = `${data.startDate}T${data.startTime}:00+09:00`
       const endDateTime = `${data.endDate}T${data.endTime}:00+09:00`
 
-      console.log('입력된 시간:', {
-        startDate: data.startDate,
-        startTime: data.startTime,
-        endDate: data.endDate,
-        endTime: data.endTime
-      })
-
-      console.log('저장할 한국 시간:', {
-        startDateTime,
-        endDateTime
-      })
+      // 이미지 업로드 (이벤트 코드 생성 후)
+      let imageUrl = null
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile, eventCode, data.startDate)
+      }
 
       // 이벤트 생성
       const { data: event, error: eventError } = await supabase
@@ -98,7 +135,12 @@ export default function NewEventPage() {
           location: data.location,
           max_participants: parseInt(data.maxParticipants),
           event_code: eventCode,
-          created_by: adminUser.id, // 관리자 ID 설정
+          image_url: imageUrl,
+          organizer_name: adminUser.user_metadata?.full_name || adminUser.email?.split('@')[0] || '관리자',
+          organizer_email: adminUser.email || 'support@neimed.com',
+          organizer_phone: adminUser.user_metadata?.phone || '02-1234-5678',
+          organizer_kakao: adminUser.user_metadata?.kakao || '@neimed_official',
+          created_by: adminUser.id,
           status: 'upcoming',
           current_participants: 0
         })
@@ -249,14 +291,7 @@ export default function NewEventPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="eventCode">이벤트 코드 (선택사항)</Label>
-                <Input
-                  {...register('eventCode')}
-                  placeholder="예: DEMO01 (자동 생성 시 비워두세요)"
-                  className="border-2 border-gray-200 focus:border-purple-500 rounded-xl"
-                />
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="description">이벤트 설명</Label>
@@ -272,14 +307,67 @@ export default function NewEventPage() {
             </CardContent>
           </Card>
 
-          {/* File Upload Section */}
+          {/* 이벤트 이미지 업로드 */}
           <Card className="border-0 shadow-lg">
             <CardContent className="p-6">
-              <Label className="text-gray-700 font-medium mb-4 block">이벤트 설정</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">파일을 업로드하거나 드래그 앤 드롭하세요</p>
-                <p className="text-sm text-gray-500">PNG, JPG, GIF 최대 10MB</p>
+              <Label className="text-gray-700 font-medium mb-4 block">이벤트 이미지</Label>
+              <div className="space-y-4">
+                {imagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="이벤트 이미지 미리보기"
+                      className="w-full h-48 object-cover rounded-xl"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setImageFile(null)
+                        setImagePreview(null)
+                      }}
+                      className="absolute top-2 right-2 bg-white"
+                    >
+                      변경
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">이벤트 이미지를 업로드하세요</p>
+                    <p className="text-sm text-gray-500 mb-4">PNG, JPG, GIF 최대 10MB</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                    />
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+                    {/* 주최자 정보 안내 */}
+          <Card className="border-0 shadow-lg bg-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-blue-900">주최자 정보</h3>
+                  <p className="text-sm text-blue-700">이벤트 생성자의 정보가 자동으로 설정됩니다</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm text-blue-800">
+                <p><strong>이름:</strong> {adminUser.user_metadata?.full_name || adminUser.email?.split('@')[0] || '관리자'}</p>
+                <p><strong>이메일:</strong> {adminUser.email || 'support@neimed.com'}</p>
+                <p><strong>연락처:</strong> {adminUser.user_metadata?.phone || '02-1234-5678'}</p>
+                {adminUser.user_metadata?.kakao && (
+                  <p><strong>카카오톡:</strong> {adminUser.user_metadata.kakao}</p>
+                )}
               </div>
             </CardContent>
           </Card>

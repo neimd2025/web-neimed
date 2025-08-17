@@ -5,6 +5,16 @@ const nextConfig = {
   },
   // Hydration 경고 억제
   reactStrictMode: false,
+  // Cross origin request 허용 (개발 환경)
+  allowedDevOrigins: [
+    '192.168.45.76',
+    'localhost',
+    '127.0.0.1'
+  ],
+  // HTTPS 설정 (모바일 카메라 접근용)
+  server: {
+    https: true
+  },
   // Edge Runtime 경고 억제
   webpack: (config, { isServer }) => {
     if (!isServer) {
