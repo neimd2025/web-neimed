@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { businessCardAPI, collectedCardAPI, eventAPI, userProfileAPI } from '@/lib/supabase/database'
+import { businessCardAPI, collectedCardAPI, userProfileAPI, calculateEventStatus, filterEventsByStatus } from '@/lib/supabase/database'
+import { createClient } from '@/utils/supabase/client'
 import { Calendar, Camera, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -30,12 +31,22 @@ export default function HomePage() {
     }
   }
 
+      // 이벤트 데이터 로드
   const loadEvents = async () => {
     try {
-      const eventsData = await eventAPI.getAllEvents()
-      setEvents(eventsData)
+      const { data, error } = await createClient()
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('이벤트 로드 오류:', error)
+        return
+      }
+
+      setEvents(data || [])
     } catch (error) {
-      console.error('Error loading events:', error)
+      console.error('이벤트 로드 오류:', error)
     }
   }
 
@@ -69,13 +80,14 @@ export default function HomePage() {
     return name.charAt(0).toUpperCase()
   }
 
-  // 이벤트 필터링 - 이벤트 히스토리 페이지와 동일한 로직
-  const ongoingEvents = events.filter(event => event.status === 'ongoing')
-  const upcomingEvents = events.filter(event => event.status === 'upcoming')
-  const completedEvents = events.filter(event => event.status === 'completed')
+  // 이벤트 필터링 - 현재 시간 기준으로 상태 계산
+  const ongoingEvents = filterEventsByStatus(events, 'ongoing')
+  const upcomingEvents = filterEventsByStatus(events, 'upcoming')
+  const completedEvents = filterEventsByStatus(events, 'completed')
 
   // 상태 배지 함수
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (event: any) => {
+    const status = calculateEventStatus(event)
     switch (status) {
       case 'ongoing':
         return <Badge className="bg-green-100 text-green-800">진행중</Badge>
@@ -285,15 +297,24 @@ export default function HomePage() {
                     <div key={event.id} className="border border-gray-200 rounded-lg p-5">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-semibold text-gray-900 text-sm">{event.title}</h4>
-                        {getStatusBadge(event.status || 'upcoming')}
+                        {getStatusBadge(event)}
                       </div>
 
                       <div className="space-y-2 mb-4">
                         <p className="text-sm text-gray-600">
-                          이벤트 일시: {new Date(event.start_date).toLocaleDateString()}
+                          이벤트 일시: {new Date(event.start_date).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Asia/Seoul'
+                          })}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {new Date(event.start_date).toLocaleDateString()} 참가 신청
+                          {new Date(event.start_date).toLocaleDateString('ko-KR', {
+                            timeZone: 'Asia/Seoul'
+                          })} 참가 신청
                         </p>
                       </div>
 

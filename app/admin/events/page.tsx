@@ -3,11 +3,12 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { calculateEventStatus } from "@/lib/supabase/database"
 import { logError } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowLeft, Bell, Calendar, Copy, Eye, FileText, MapPin, MoreVertical, Plus, Save, Share, Users, X } from "lucide-react"
+import { Bell, Calendar, Copy, Eye, FileText, MapPin, MoreVertical, Plus, Save, Share, Users, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -60,6 +61,8 @@ export default function AdminEventsPage() {
     const fetchEvents = async () => {
       try {
         setLoading(true)
+
+                        // 이벤트 데이터 가져오기
         const { data, error } = await supabase
           .from('events')
           .select('*')
@@ -121,13 +124,14 @@ export default function AdminEventsPage() {
     }
   }
 
-  const getStatusBadge = (status: Event["status"]) => {
+  const getStatusBadge = (event: any) => {
+    const status = calculateEventStatus(event)
     const statusConfig = {
       upcoming: { label: "예정", color: "bg-blue-50 text-blue-700 border-blue-200" },
       ongoing: { label: "진행중", color: "bg-green-50 text-green-700 border-green-200" },
       completed: { label: "완료", color: "bg-gray-50 text-gray-700 border-gray-200" }
     }
-    const config = statusConfig[status]
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, color: "bg-gray-50 text-gray-700 border-gray-200" }
     return <Badge variant="outline" className={config.color}>{config.label}</Badge>
   }
 
@@ -140,20 +144,83 @@ export default function AdminEventsPage() {
     })
   }
 
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Seoul"
+    })
+  }
+
   const filteredEvents = events.filter(event => {
     if (filter === "all") return true
-    return event.status === filter
+    const status = calculateEventStatus(event)
+    return status === filter
   })
 
-  const handleSendNotice = async () => {
-    if (!selectedEvent || !noticeTitle || !noticeMessage) {
+    const handleSendNotice = async () => {
+    if (!selectedEvent || !noticeTitle || !noticeMessage || !adminUser) {
       toast.error('제목과 메시지를 모두 입력해주세요.')
       return
     }
 
     try {
-      // 공지 전송 로직 구현
-      toast.success('공지가 성공적으로 전송되었습니다.')
+      setLoading(true)
+
+      // 1. 이벤트 참가자 목록 가져오기
+      const { data: participants, error: participantsError } = await supabase
+        .from('event_participants')
+        .select('user_id')
+        .eq('event_id', selectedEvent.id)
+
+      if (participantsError) {
+        console.error('참가자 목록 조회 오류:', participantsError)
+        toast.error('참가자 목록을 가져오는데 실패했습니다.')
+        return
+      }
+
+      if (!participants || participants.length === 0) {
+        toast.error('이벤트에 참가자가 없습니다.')
+        return
+      }
+
+      // 2. 배치 처리로 효율적으로 알림 전송
+      const batchSize = 50; // 한 번에 50개씩 처리
+      let successCount = 0;
+
+      for (let i = 0; i < participants.length; i += batchSize) {
+        const batch = participants.slice(i, i + batchSize);
+
+        const notifications = batch.map(participant => ({
+          title: noticeTitle,
+          message: noticeMessage,
+          target_type: 'event_participants',
+          target_event_id: selectedEvent.id,
+          user_id: participant.user_id,
+          sent_by: adminUser.id
+        }));
+
+        const { error: batchError } = await supabase
+          .from('notifications')
+          .insert(notifications);
+
+        if (batchError) {
+          console.error(`배치 ${Math.floor(i / batchSize) + 1} 전송 실패:`, batchError);
+        } else {
+          successCount += batch.length;
+        }
+      }
+
+      if (successCount === participants.length) {
+        toast.success(`${participants.length}명의 참가자에게 공지가 성공적으로 전송되었습니다.`)
+      } else {
+        toast.warning(`${successCount}명에게 전송되었습니다. (${participants.length - successCount}명 실패)`)
+      }
+
       setShowNoticeModal(false)
       setNoticeTitle("")
       setNoticeMessage("")
@@ -161,6 +228,8 @@ export default function AdminEventsPage() {
     } catch (error) {
       logError('공지 전송 오류:', error)
       toast.error('공지 전송에 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -215,9 +284,6 @@ export default function AdminEventsPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.back()} className="p-2 hover:bg-gray-100">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-sm">NN</span>
@@ -229,9 +295,12 @@ export default function AdminEventsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md">
-              이벤트
-            </div>
+            <Link href="/admin/events/new">
+              <Button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md">
+                <Plus className="h-4 w-4 mr-2" />
+                새 이벤트 만들기
+              </Button>
+            </Link>
             <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-md">
               <span className="text-white text-xs font-medium">D</span>
             </div>
@@ -292,7 +361,7 @@ export default function AdminEventsPage() {
                     {/* 이벤트 이미지 */}
                     <div className="h-32 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 relative">
                       <div className="absolute top-3 left-3 flex items-center gap-2">
-                        {getStatusBadge(event.status)}
+                        {getStatusBadge(event)}
                       </div>
                       <div className="absolute top-3 right-3">
                         <Button variant="ghost" size="sm" className="bg-black bg-opacity-20 hover:bg-opacity-30 text-white">
@@ -314,11 +383,11 @@ export default function AdminEventsPage() {
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            <span>{formatDate(event.start_date)}</span>
+                            <span>{formatDateTime(event.start_date)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-4 w-4" />
-                            <span>제출자: {event.max_participants}명</span>
+                            <span>최대: {event.max_participants}명</span>
                           </div>
                         </div>
                       </div>
@@ -501,7 +570,7 @@ export default function AdminEventsPage() {
                       <span className="font-semibold text-gray-900 text-lg">{selectedEvent.title}</span>
                       <div className="text-sm text-gray-600 space-y-1">
                         <p>{selectedEvent.event_code}</p>
-                        <p>{formatDate(selectedEvent.start_date)}</p>
+                        <p>{formatDateTime(selectedEvent.start_date)}</p>
                       </div>
                     </div>
                   </div>

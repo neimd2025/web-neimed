@@ -9,7 +9,7 @@ export default function AdminHeader() {
   const pathname = usePathname()
 
   const navItems = [
-    { href: "/admin/dashboard", icon: Plus, label: "대시보드" },
+    { href: "/admin/events", icon: Plus, label: "이벤트 관리" },
     { href: "/admin/members", icon: Users, label: "회원관리" },
     { href: "/admin/feedback", icon: MessageSquare, label: "피드백" },
     { href: "/admin/coupons", icon: Gift, label: "쿠폰" },

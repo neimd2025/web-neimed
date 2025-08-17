@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/stores/auth-store"
 import { createClient } from "@/utils/supabase/client"
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from 'react-hook-form'
@@ -19,7 +19,9 @@ import { z } from 'zod'
 const eventSchema = z.object({
   title: z.string().min(1, '이벤트 이름을 입력해주세요').max(100, '이벤트 이름은 100자 이하여야 합니다'),
   startDate: z.string().min(1, '시작 날짜를 입력해주세요'),
+  startTime: z.string().min(1, '시작 시간을 입력해주세요'),
   endDate: z.string().min(1, '종료 날짜를 입력해주세요'),
+  endTime: z.string().min(1, '종료 시간을 입력해주세요'),
   location: z.string().min(1, '장소를 입력해주세요').max(200, '장소는 200자 이하여야 합니다'),
   description: z.string().min(1, '이벤트 설명을 입력해주세요').max(1000, '이벤트 설명은 1000자 이하여야 합니다'),
   maxParticipants: z.string().min(1, '최대 참가자 수를 입력해주세요').refine((val) => {
@@ -28,11 +30,11 @@ const eventSchema = z.object({
   }, '최대 참가자 수는 1명 이상 1000명 이하여야 합니다'),
   eventCode: z.string().optional()
 }).refine((data) => {
-  const startDate = new Date(data.startDate)
-  const endDate = new Date(data.endDate)
-  return endDate > startDate
+  const startDateTime = new Date(`${data.startDate}T${data.startTime}`)
+  const endDateTime = new Date(`${data.endDate}T${data.endTime}`)
+  return endDateTime > startDateTime
 }, {
-  message: "종료 날짜는 시작 날짜보다 늦어야 합니다",
+  message: "종료 일시는 시작 일시보다 늦어야 합니다",
   path: ["endDate"],
 })
 
@@ -53,7 +55,7 @@ export default function NewEventPage() {
 
   // 관리자 권한 확인
   if (!adminUser) {
-            router.push('/admin/login')
+    router.push('/admin/login')
     return null
   }
 
@@ -69,14 +71,30 @@ export default function NewEventPage() {
         eventCode = Math.random().toString(36).substring(2, 8).toUpperCase()
       }
 
+      // 한국 시간으로 저장 (UTC 변환 없이)
+      const startDateTime = `${data.startDate}T${data.startTime}:00+09:00`
+      const endDateTime = `${data.endDate}T${data.endTime}:00+09:00`
+
+      console.log('입력된 시간:', {
+        startDate: data.startDate,
+        startTime: data.startTime,
+        endDate: data.endDate,
+        endTime: data.endTime
+      })
+
+      console.log('저장할 한국 시간:', {
+        startDateTime,
+        endDateTime
+      })
+
       // 이벤트 생성
       const { data: event, error: eventError } = await supabase
         .from('events')
         .insert({
           title: data.title,
           description: data.description,
-          start_date: data.startDate,
-          end_date: data.endDate,
+          start_date: startDateTime,
+          end_date: endDateTime,
           location: data.location,
           max_participants: parseInt(data.maxParticipants),
           event_code: eventCode,
@@ -120,7 +138,7 @@ export default function NewEventPage() {
 
       <div className="px-4 py-6 space-y-6">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Card className="border-0 shadow-lg Audit">
+          <Card className="border-0 shadow-lg">
             <CardContent className="p-6 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">이벤트 이름</Label>
@@ -134,29 +152,75 @@ export default function NewEventPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">시작 날짜</Label>
-                  <Input
-                    {...register('startDate')}
-                    type="datetime-local"
-                    className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.startDate ? 'border-red-500' : ''}`}
-                  />
-                  {errors.startDate && (
-                    <p className="text-red-500 text-sm">{errors.startDate.message}</p>
-                  )}
-                </div>
+              {/* 시작 일시 */}
+              <div className="space-y-4">
+                <Label className="text-gray-700 font-medium">시작 일시</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <Label htmlFor="startDate" className="text-sm">날짜</Label>
+                    </div>
+                    <Input
+                      {...register('startDate')}
+                      type="date"
+                      className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.startDate ? 'border-red-500' : ''}`}
+                    />
+                    {errors.startDate && (
+                      <p className="text-red-500 text-sm">{errors.startDate.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">종료 날짜</Label>
-                  <Input
-                    {...register('endDate')}
-                    type="datetime-local"
-                    className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.endDate ? 'border-red-500' : ''}`}
-                  />
-                  {errors.endDate && (
-                    <p className="text-red-500 text-sm">{errors.endDate.message}</p>
-                  )}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <Label htmlFor="startTime" className="text-sm">시간</Label>
+                    </div>
+                    <Input
+                      {...register('startTime')}
+                      type="time"
+                      className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.startTime ? 'border-red-500' : ''}`}
+                    />
+                    {errors.startTime && (
+                      <p className="text-red-500 text-sm">{errors.startTime.message}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 종료 일시 */}
+              <div className="space-y-4">
+                <Label className="text-gray-700 font-medium">종료 일시</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <Label htmlFor="endDate" className="text-sm">날짜</Label>
+                    </div>
+                    <Input
+                      {...register('endDate')}
+                      type="date"
+                      className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.endDate ? 'border-red-500' : ''}`}
+                    />
+                    {errors.endDate && (
+                      <p className="text-red-500 text-sm">{errors.endDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <Label htmlFor="endTime" className="text-sm">시간</Label>
+                    </div>
+                    <Input
+                      {...register('endTime')}
+                      type="time"
+                      className={`border-2 border-gray-200 focus:border-purple-500 rounded-xl ${errors.endTime ? 'border-red-500' : ''}`}
+                    />
+                    {errors.endTime && (
+                      <p className="text-red-500 text-sm">{errors.endTime.message}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 

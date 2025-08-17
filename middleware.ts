@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
   if (isAdminAuthRoute && session) {
     const isAdmin = session.user?.user_metadata?.isAdmin === true
     if (isAdmin) {
-      return NextResponse.redirect(new URL('/admin/dashboard', req.url))
+      return NextResponse.redirect(new URL('/admin/events', req.url))
     }
   }
 

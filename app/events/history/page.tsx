@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { eventAPI } from '@/lib/supabase/database'
+import { eventAPI, calculateEventStatus, filterEventsByStatus } from '@/lib/supabase/database'
 import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,15 +15,17 @@ export default function EventHistoryPage() {
   const [activeTab, setActiveTab] = useState<'진행중' | '예정' | '종료'>('진행중')
   const router = useRouter()
 
-  // 이벤트 필터링
-  const ongoingEvents = events.filter(event => event.status === 'ongoing')
-  const upcomingEvents = events.filter(event => event.status === 'upcoming')
-  const completedEvents = events.filter(event => event.status === 'completed')
+  // 이벤트 필터링 - 현재 시간 기준으로 상태 계산
+  const ongoingEvents = filterEventsByStatus(events, 'ongoing')
+  const upcomingEvents = filterEventsByStatus(events, 'upcoming')
+  const completedEvents = filterEventsByStatus(events, 'completed')
 
   useEffect(() => {
     const loadEvents = async () => {
       try {
         setLoading(true)
+
+                        // 이벤트 데이터 가져오기
         const eventsData = await eventAPI.getAllEvents()
         setEvents(eventsData)
       } catch (error) {
@@ -49,7 +51,8 @@ export default function EventHistoryPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (event: any) => {
+    const status = calculateEventStatus(event)
     switch (status) {
       case 'ongoing':
         return <Badge className="bg-green-100 text-green-800">진행중</Badge>
@@ -117,7 +120,14 @@ export default function EventHistoryPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          <span>{new Date(event.start_date).toLocaleDateString()}</span>
+                          <span>{new Date(event.start_date).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Asia/Seoul'
+                          })}</span>
                         </div>
                         {event.location && (
                           <div className="flex items-center gap-1">
@@ -133,7 +143,7 @@ export default function EventHistoryPage() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(event.status || 'upcoming')}
+                      {getStatusBadge(event)}
                       <Button
                         variant="outline"
                         size="sm"

@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (!authLoading && adminUser) {
-      router.push('/admin/dashboard')
+      router.push('/admin/events')
     }
   }, [adminUser, authLoading, router])
 

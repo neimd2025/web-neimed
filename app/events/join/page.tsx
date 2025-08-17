@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useEvents } from '@/hooks/use-events'
+import { calculateEventStatus } from '@/lib/supabase/database'
 import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 export default function EventJoinPage() {
   const { user } = useAuth()
@@ -16,6 +17,8 @@ export default function EventJoinPage() {
   const [eventCode, setEventCode] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+
 
   const handleCodeChange = (index: number, value: string) => {
     if (value.length > 1) return // 한 글자만 입력 가능

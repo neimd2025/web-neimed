@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { eventAPI } from '@/lib/supabase/database'
+import { calculateEventStatus, eventAPI } from '@/lib/supabase/database'
 import { logError } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, CheckCircle, Clock, MapPin, User, Users } from 'lucide-react'
@@ -53,7 +53,8 @@ export default function EventDetailPage() {
 
       try {
         setLoading(true)
-        const eventData = await eventAPI.getEvent(params.id as string)
+
+                const eventData = await eventAPI.getEvent(params.id as string)
         setEvent(eventData)
 
         // 참가자 목록 로드
@@ -118,7 +119,8 @@ export default function EventDetailPage() {
     }
   }, [user])
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (event: any) => {
+    const status = calculateEventStatus(event)
     switch (status) {
       case 'ongoing':
         return <Badge className="bg-green-100 text-green-800">진행중</Badge>
@@ -239,7 +241,7 @@ export default function EventDetailPage() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <CardTitle className="text-xl mb-2">{event.title}</CardTitle>
-                {getStatusBadge(event.status || 'upcoming')}
+                {getStatusBadge(event)}
               </div>
             </div>
           </CardHeader>
@@ -354,9 +356,9 @@ export default function EventDetailPage() {
             <Button
               className="flex-1 bg-purple-600 hover:bg-purple-700"
               onClick={handleJoinEvent}
-              disabled={joining || event.status === 'completed'}
+              disabled={joining || calculateEventStatus(event) === 'completed'}
             >
-              {joining ? '참가 중...' : event.status === 'completed' ? '종료된 이벤트' : '이벤트 참가하기'}
+              {joining ? '참가 중...' : calculateEventStatus(event) === 'completed' ? '종료된 이벤트' : '이벤트 참가하기'}
             </Button>
           )}
 

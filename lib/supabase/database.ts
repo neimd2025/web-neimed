@@ -20,6 +20,26 @@ type CollectedCardInsert = Tables['collected_cards']['Insert']
 type Notification = Tables['notifications']['Row']
 type NotificationInsert = Tables['notifications']['Insert']
 
+// 이벤트 상태 계산 함수 (DB 수정 없이)
+export const calculateEventStatus = (event: any) => {
+  const now = new Date()
+  const startDate = new Date(event.start_date)
+  const endDate = new Date(event.end_date)
+
+  if (now < startDate) {
+    return 'upcoming'
+  } else if (now >= startDate && now < endDate) {
+    return 'ongoing'
+  } else {
+    return 'completed'
+  }
+}
+
+// 이벤트 상태별 필터링 함수
+export const filterEventsByStatus = (events: any[], status: 'upcoming' | 'ongoing' | 'completed') => {
+  return events.filter(event => calculateEventStatus(event) === status)
+}
+
 // 사용자 프로필 관련 함수들
 export const userProfileAPI = {
   // 사용자 프로필 가져오기
@@ -165,6 +185,8 @@ export const eventAPI = {
 
     return data || []
   },
+
+
 
   // 특정 이벤트 가져오기
   async getEvent(eventId: string): Promise<Event | null> {

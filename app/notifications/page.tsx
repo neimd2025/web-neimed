@@ -29,6 +29,32 @@ export default function NotificationsPage() {
   const [isConnected, setIsConnected] = useState(false)
   const supabase = createClient()
 
+  // 알림 새로고침 함수
+  const refreshNotifications = async () => {
+    if (!user) return
+
+    try {
+      console.log('알림 새로고침 시작, 사용자 ID:', user.id)
+
+      // 사용자에게 전송된 알림들을 가져옴
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .or(`user_id.eq.${user.id},target_type.eq.all`)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('알림 새로고침 오류:', error)
+        return
+      }
+
+      console.log('새로고침된 알림 데이터:', data)
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('알림 새로고침 오류:', error)
+    }
+  }
+
   // 알림 데이터 가져오기
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -46,11 +72,11 @@ export default function NotificationsPage() {
 
         console.log('모든 알림 데이터:', allNotifications)
 
-        // 사용자 ID가 target_ids 배열에 포함된 알림들을 가져옴
+        // 사용자에게 전송된 알림들을 가져옴
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
-          .or(`target_ids.cs.{${user.id}},target_type.eq.all`)
+          .or(`user_id.eq.${user.id},target_type.eq.all`)
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -72,6 +98,17 @@ export default function NotificationsPage() {
     fetchNotifications()
   }, [user, supabase])
 
+  // 페이지 포커스 시 알림 새로고침
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('페이지 포커스됨, 알림 새로고침')
+      refreshNotifications()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [user])
+
   // 실시간 알림 수신을 위한 useEffect
   useEffect(() => {
     if (!user) return
@@ -79,35 +116,25 @@ export default function NotificationsPage() {
     console.log('실시간 알림 구독 시작, 사용자 ID:', user.id)
     setIsConnected(true)
 
+        // 개선된 실시간 구독
     const channel = supabase.channel(`notifications:${user.id}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'notifications',
-          filter: `target_ids=cs.{${user.id}}`
+          table: 'notifications'
         },
         (payload) => {
-          console.log('새 알림 실시간 수신 (특정 사용자):', payload.new)
+          console.log('새 알림 실시간 수신:', payload.new)
           const newNotification = payload.new as Notification
-          setNotifications((prev) => [newNotification, ...prev])
-          toast.success('새 알림이 도착했습니다!')
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `target_type=eq.all`
-        },
-        (payload) => {
-          console.log('전체 공지 실시간 수신:', payload.new)
-          const newNotification = payload.new as Notification
-          setNotifications((prev) => [newNotification, ...prev])
-          toast.success('새 공지가 도착했습니다!')
+
+          // 현재 사용자에게 온 알림인지 확인
+          if (newNotification.user_id === user.id || newNotification.target_type === 'all') {
+            console.log('사용자에게 맞는 알림 확인됨:', newNotification)
+            setNotifications((prev) => [newNotification, ...prev])
+            toast.success('새 알림이 도착했습니다!')
+          }
         }
       )
       .subscribe((status) => {
@@ -131,6 +158,7 @@ export default function NotificationsPage() {
         .from('notifications')
         .update({ read_at: new Date().toISOString() })
         .eq('id', notificationId)
+        .eq('user_id', user.id)
 
       if (error) {
         console.error('알림 읽음 처리 오류:', error)
@@ -217,6 +245,18 @@ export default function NotificationsPage() {
       )}
 
       <div className="px-4 py-6 space-y-4">
+        {/* 새로고침 버튼 */}
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">알림</h2>
+          <button
+            onClick={refreshNotifications}
+            disabled={loading}
+            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50"
+          >
+            {loading ? '새로고침 중...' : '새로고침'}
+          </button>
+        </div>
+
         {loading ? (
           <p className="text-center py-8">알림을 불러오는 중입니다...</p>
         ) : notifications.length === 0 ? (
