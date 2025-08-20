@@ -68,7 +68,7 @@ export default function EditProfilePage() {
     if (profile) {
       setValue('full_name', profile.full_name || '')
       setValue('birth_date', profile.birth_date || '')
-      setValue('affiliation_type', profile.affiliation_type || '소속')
+      setValue('affiliation_type', (profile.affiliation_type as '소속' | '미소속') || '소속')
       setValue('affiliation', profile.affiliation || '')
       setValue('role', profile.role || '')
       setValue('contact', profile.contact || '')

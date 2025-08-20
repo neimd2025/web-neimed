@@ -179,8 +179,13 @@ export type Database = {
           end_date: string
           event_code: string | null
           id: string
+          image_url: string | null
           location: string | null
           max_participants: number | null
+          organizer_email: string | null
+          organizer_kakao: string | null
+          organizer_name: string | null
+          organizer_phone: string | null
           start_date: string
           status: string | null
           title: string
@@ -194,8 +199,13 @@ export type Database = {
           end_date: string
           event_code?: string | null
           id?: string
+          image_url?: string | null
           location?: string | null
           max_participants?: number | null
+          organizer_email?: string | null
+          organizer_kakao?: string | null
+          organizer_name?: string | null
+          organizer_phone?: string | null
           start_date: string
           status?: string | null
           title: string
@@ -209,8 +219,13 @@ export type Database = {
           end_date?: string
           event_code?: string | null
           id?: string
+          image_url?: string | null
           location?: string | null
           max_participants?: number | null
+          organizer_email?: string | null
+          organizer_kakao?: string | null
+          organizer_name?: string | null
+          organizer_phone?: string | null
           start_date?: string
           status?: string | null
           title?: string
