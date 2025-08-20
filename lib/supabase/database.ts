@@ -110,14 +110,26 @@ export const userProfileAPI = {
       }
     }
 
-    // keywords 필드가 빈 배열인 경우 null로 설정
+    // personality_keywords 필드가 빈 배열인 경우 null로 설정
+    if (cleanedUpdates.personality_keywords && Array.isArray(cleanedUpdates.personality_keywords) && cleanedUpdates.personality_keywords.length === 0) {
+      console.log('빈 personality_keywords 배열을 null로 설정')
+      cleanedUpdates.personality_keywords = null
+    }
+
+    // interest_keywords 필드가 빈 배열인 경우 null로 설정
+    if (cleanedUpdates.interest_keywords && Array.isArray(cleanedUpdates.interest_keywords) && cleanedUpdates.interest_keywords.length === 0) {
+      console.log('빈 interest_keywords 배열을 null로 설정')
+      cleanedUpdates.interest_keywords = null
+    }
+
+    // 기존 keywords 필드 처리 (하위 호환성)
     if (cleanedUpdates.keywords && Array.isArray(cleanedUpdates.keywords) && cleanedUpdates.keywords.length === 0) {
       console.log('빈 keywords 배열을 null로 설정')
       cleanedUpdates.keywords = null
     }
 
     // 빈 문자열 필드들을 null로 설정
-    const fieldsToNullify = ['company', 'contact', 'introduction', 'mbti']
+    const fieldsToNullify = ['affiliation', 'role', 'contact', 'introduction', 'mbti', 'external_link']
     fieldsToNullify.forEach(field => {
       if (cleanedUpdates[field as keyof typeof cleanedUpdates] === '') {
         console.log(`${field} 빈 문자열을 null로 설정`)
@@ -596,6 +608,23 @@ export const collectedCardAPI = {
 
     if (error) {
       console.error('Error removing collected card:', error)
+      return false
+    }
+
+    return true
+  },
+
+  // 메모 업데이트
+  async updateMemo(collectionId: string, memo: string): Promise<boolean> {
+    const supabase = createClient()
+
+    const { error } = await supabase
+      .from('collected_cards')
+      .update({ memo: memo })
+      .eq('id', collectionId)
+
+    if (error) {
+      console.error('Error updating memo:', error)
       return false
     }
 

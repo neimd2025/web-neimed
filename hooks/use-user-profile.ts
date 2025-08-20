@@ -156,8 +156,8 @@ export const useUserProfile = () => {
     return !!(
       profile.full_name &&
       profile.email &&
-      profile.company &&
-      profile.role
+      profile.personality_keywords &&
+      profile.personality_keywords.length > 0
     )
   }
 

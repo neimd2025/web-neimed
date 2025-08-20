@@ -274,6 +274,7 @@ export type Database = {
       user_profiles: {
         Row: {
           affiliation: string | null
+          affiliation_type: string | null
           birth_date: string | null
           company: string | null
           contact: string | null
@@ -282,10 +283,12 @@ export type Database = {
           external_link: string | null
           full_name: string | null
           id: string
+          interest_keywords: string[] | null
           introduction: string | null
           keywords: string[] | null
           mbti: string | null
           nickname: string | null
+          personality_keywords: string[] | null
           profile_image_url: string | null
           qr_code_url: string | null
           role: string | null
@@ -294,6 +297,7 @@ export type Database = {
         }
         Insert: {
           affiliation?: string | null
+          affiliation_type?: string | null
           birth_date?: string | null
           company?: string | null
           contact?: string | null
@@ -302,10 +306,12 @@ export type Database = {
           external_link?: string | null
           full_name?: string | null
           id: string
+          interest_keywords?: string[] | null
           introduction?: string | null
           keywords?: string[] | null
           mbti?: string | null
           nickname?: string | null
+          personality_keywords?: string[] | null
           profile_image_url?: string | null
           qr_code_url?: string | null
           role?: string | null
@@ -314,6 +320,7 @@ export type Database = {
         }
         Update: {
           affiliation?: string | null
+          affiliation_type?: string | null
           birth_date?: string | null
           company?: string | null
           contact?: string | null
@@ -322,10 +329,12 @@ export type Database = {
           external_link?: string | null
           full_name?: string | null
           id?: string
+          interest_keywords?: string[] | null
           introduction?: string | null
           keywords?: string[] | null
           mbti?: string | null
           nickname?: string | null
+          personality_keywords?: string[] | null
           profile_image_url?: string | null
           qr_code_url?: string | null
           role?: string | null

@@ -23,12 +23,13 @@ const profileSchema = z.object({
     const date = new Date(val)
     return !isNaN(date.getTime())
   }, '올바른 날짜 형식을 입력해주세요'),
+  affiliation_type: z.enum(['소속', '미소속']).default('소속'),
   affiliation: z.string().max(100, '소속은 100자 이하여야 합니다'),
-  company: z.string().max(100, '회사명은 100자 이하여야 합니다'),
-  role: z.string().max(100, '직책은 100자 이하여야 합니다'),
+  role: z.string().max(100, '역할은 100자 이하여야 합니다'),
   contact: z.string().max(100, '연락처는 100자 이하여야 합니다'),
   mbti: z.string().optional(),
-  keywords: z.array(z.string()).max(3, '성격 키워드는 최대 3개까지 선택할 수 있습니다'),
+  personality_keywords: z.array(z.string()).max(3, '성격 키워드는 최대 3개까지 선택할 수 있습니다'),
+  interest_keywords: z.array(z.string()).max(3, '관심 키워드는 최대 3개까지 선택할 수 있습니다'),
   introduction: z.string().max(500, '자기소개는 500자 이하여야 합니다'),
   external_link: z.string().url('올바른 URL 형식을 입력해주세요').optional().or(z.literal(''))
 })
@@ -50,12 +51,13 @@ export default function EditProfilePage() {
     defaultValues: {
       full_name: '',
       birth_date: '',
+      affiliation_type: '소속',
       affiliation: '',
-      company: '',
       role: '',
       contact: '',
       mbti: '',
-      keywords: [],
+      personality_keywords: [],
+      interest_keywords: [],
       introduction: '',
       external_link: ''
     }
@@ -66,12 +68,14 @@ export default function EditProfilePage() {
     if (profile) {
       setValue('full_name', profile.full_name || '')
       setValue('birth_date', profile.birth_date || '')
+      setValue('affiliation_type', profile.affiliation_type || '소속')
       setValue('affiliation', profile.affiliation || '')
-      setValue('company', profile.company || '')
       setValue('role', profile.role || '')
       setValue('contact', profile.contact || '')
       setValue('mbti', profile.mbti || '')
-      setValue('keywords', profile.keywords || [])
+      // 기존 keywords를 personality_keywords로 마이그레이션
+      setValue('personality_keywords', profile.personality_keywords || profile.keywords || [])
+      setValue('interest_keywords', profile.interest_keywords || [])
       setValue('introduction', profile.introduction || '')
       setValue('external_link', profile.external_link || '')
     }
@@ -86,8 +90,14 @@ export default function EditProfilePage() {
     '낯가림이 있어요', '사람들과 잘 어울려요', '호기심이 많아요', '조용한 편이에요',
     '에너지가 많은 편이에요', '계획을 세우는 걸 좋아해요', '즉흥적으로 움직이는 편이에요',
     '리더보다 서포터가 편해요', '공감을 잘하는 편이에요', '혼자 있는 시간을 좋아해요',
-    '말보다 글이 더 편해요', '꼼곰한 편이에요', '감성적인 편이에요', '솔직하게 말하는 편이에요',
+    '말보다 글이 더 편해요', '꼼꼼한 편이에요', '감성적인 편이에요', '솔직하게 말하는 편이에요',
     '새로운 아이디어를 자주 떠올려요'
+  ]
+
+  const interestOptions = [
+    '인공지능', '창업', '퍼스널 브랜딩', '콘텐츠 제작', '사회적기업', '젠더/다양성',
+    '교환/유학', '감정표현', '전시/예술', '문학/에세이', 'SNS/커뮤니티', '교육격차',
+    '진로탐색', '자기계발', '지속가능성'
   ]
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -101,12 +111,13 @@ export default function EditProfilePage() {
       const cleanedData = {
         full_name: data.full_name,
         birth_date: data.birth_date || null,
-        affiliation: data.affiliation || null,
-        company: data.company || null,
+        affiliation_type: data.affiliation_type,
+        affiliation: data.affiliation_type === '소속' ? (data.affiliation || null) : null,
         role: data.role || null,
         contact: data.contact || null,
         mbti: data.mbti || null,
-        keywords: data.keywords.length > 0 ? data.keywords : null,
+        personality_keywords: data.personality_keywords.length > 0 ? data.personality_keywords : null,
+        interest_keywords: data.interest_keywords.length > 0 ? data.interest_keywords : null,
         introduction: data.introduction || null,
         external_link: data.external_link || null
       }
@@ -126,13 +137,23 @@ export default function EditProfilePage() {
   }
 
   const handlePersonalityToggle = (personality: string) => {
-    const currentKeywords = watch('keywords')
+    const currentKeywords = watch('personality_keywords')
     const newKeywords = currentKeywords.includes(personality)
       ? currentKeywords.filter(p => p !== personality)
       : currentKeywords.length < 3
         ? [...currentKeywords, personality]
         : currentKeywords
-    setValue('keywords', newKeywords)
+    setValue('personality_keywords', newKeywords)
+  }
+
+  const handleInterestToggle = (interest: string) => {
+    const currentKeywords = watch('interest_keywords')
+    const newKeywords = currentKeywords.includes(interest)
+      ? currentKeywords.filter(p => p !== interest)
+      : currentKeywords.length < 3
+        ? [...currentKeywords, interest]
+        : currentKeywords
+    setValue('interest_keywords', newKeywords)
   }
 
   return (
@@ -238,39 +259,46 @@ export default function EditProfilePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   소속
                 </label>
-                <Input
-                  {...register('affiliation')}
-                  placeholder="소속을 입력하세요"
-                  className={errors.affiliation ? 'border-red-500' : ''}
-                />
+                <div className="flex gap-2 mb-3">
+                  <Button
+                    type="button"
+                    variant={watch('affiliation_type') === '소속' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setValue('affiliation_type', '소속')}
+                    className={watch('affiliation_type') === '소속' ? 'bg-purple-600' : ''}
+                  >
+                    소속
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={watch('affiliation_type') === '미소속' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setValue('affiliation_type', '미소속')}
+                    className={watch('affiliation_type') === '미소속' ? 'bg-purple-600' : ''}
+                  >
+                    미소속
+                  </Button>
+                </div>
+                {watch('affiliation_type') === '소속' && (
+                  <Input
+                    {...register('affiliation')}
+                    placeholder="예: 네이버"
+                    className={errors.affiliation ? 'border-red-500' : ''}
+                  />
+                )}
                 {errors.affiliation && (
                   <p className="text-red-500 text-sm mt-1">{errors.affiliation.message}</p>
                 )}
               </div>
 
-              {/* 회사 */}
+              {/* 역할 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사
-                </label>
-                <Input
-                  {...register('company')}
-                  placeholder="회사명을 입력하세요"
-                  className={errors.company ? 'border-red-500' : ''}
-                />
-                {errors.company && (
-                  <p className="text-red-500 text-sm mt-1">{errors.company.message}</p>
-                )}
-              </div>
-
-              {/* 직책 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직책
+                  역할
                 </label>
                 <Input
                   {...register('role')}
-                  placeholder="직책을 입력하세요"
+                  placeholder="예: 마케팅, 개발자, 디자이너"
                   className={errors.role ? 'border-red-500' : ''}
                 />
                 {errors.role && (
@@ -278,14 +306,14 @@ export default function EditProfilePage() {
                 )}
               </div>
 
-              {/* 연락처 */}
+              {/* 연락처나 카카오톡 아이디 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  연락처
+                  연락처나 카카오톡 아이디(선택)
                 </label>
                 <Input
                   {...register('contact')}
-                  placeholder="연락처를 입력하세요"
+                  placeholder="번호의 경우 숫자만 입력하세요"
                   className={errors.contact ? 'border-red-500' : ''}
                 />
                 {errors.contact && (
@@ -296,7 +324,7 @@ export default function EditProfilePage() {
               {/* MBTI */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  MBTI
+                  MBTI (선택)
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {mbtiTypes.map((mbti) => (
@@ -306,7 +334,7 @@ export default function EditProfilePage() {
                       variant={watch('mbti') === mbti ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => handleMBTISelect(mbti)}
-                      className="text-xs"
+                      className={watch('mbti') === mbti ? 'bg-purple-600' : 'text-xs'}
                     >
                       {mbti}
                     </Button>
@@ -317,33 +345,55 @@ export default function EditProfilePage() {
               {/* 성격 키워드 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성격 키워드 (최대 3개)
+                  성격 키워드 * (최소 1개, 최대 3개)
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {personalityOptions.map((personality) => (
                     <Badge
                       key={personality}
-                      variant={watch('keywords').includes(personality) ? 'default' : 'outline'}
-                      className="cursor-pointer"
+                      variant={watch('personality_keywords').includes(personality) ? 'default' : 'outline'}
+                      className={`cursor-pointer ${watch('personality_keywords').includes(personality) ? 'bg-purple-600' : ''}`}
                       onClick={() => handlePersonalityToggle(personality)}
                     >
                       {personality}
                     </Badge>
                   ))}
                 </div>
-                {errors.keywords && (
-                  <p className="text-red-500 text-sm mt-1">{errors.keywords.message}</p>
+                {errors.personality_keywords && (
+                  <p className="text-red-500 text-sm mt-1">{errors.personality_keywords.message}</p>
                 )}
               </div>
 
-              {/* 자기소개 */}
+              {/* 관심 키워드 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  자기소개
+                  관심 키워드 (선택, 최대 3개)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {interestOptions.map((interest) => (
+                    <Badge
+                      key={interest}
+                      variant={watch('interest_keywords').includes(interest) ? 'default' : 'outline'}
+                      className={`cursor-pointer ${watch('interest_keywords').includes(interest) ? 'bg-purple-600' : ''}`}
+                      onClick={() => handleInterestToggle(interest)}
+                    >
+                      {interest}
+                    </Badge>
+                  ))}
+                </div>
+                {errors.interest_keywords && (
+                  <p className="text-red-500 text-sm mt-1">{errors.interest_keywords.message}</p>
+                )}
+              </div>
+
+              {/* 자기소개 한줄 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  자기소개 한줄 (선택)
                 </label>
                 <textarea
                   {...register('introduction')}
-                  rows={4}
+                  rows={3}
                   placeholder="자기소개를 입력하세요"
                   className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
                     errors.introduction ? 'border-red-500' : ''
@@ -354,10 +404,10 @@ export default function EditProfilePage() {
                 )}
               </div>
 
-              {/* 외부 링크 */}
+              {/* 대표 외부 링크 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  외부 링크
+                  대표 외부 링크 (선택)
                 </label>
                 <Input
                   {...register('external_link')}
@@ -375,7 +425,7 @@ export default function EditProfilePage() {
                 disabled={isSubmitting}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-medium"
               >
-                {isSubmitting ? '저장 중...' : '프로필 저장'}
+                {isSubmitting ? '저장 중...' : '수정 완료'}
               </Button>
             </form>
           </motion.div>

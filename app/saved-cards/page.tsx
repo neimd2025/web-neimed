@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { collectedCardAPI } from '@/lib/supabase/database'
-import { ArrowLeft, Heart, Search, User } from 'lucide-react'
+import { ArrowLeft, Edit, Search, Star, User } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -112,7 +112,7 @@ export default function SavedCardsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="이름, 회사, 직책으로 검색"
+              placeholder="이름, 회사, 직책으로 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -123,30 +123,23 @@ export default function SavedCardsPage() {
             <Button
               variant={showFavorites ? "default" : "outline"}
               size="sm"
-              onClick={() => setShowFavorites(!showFavorites)}
+              onClick={() => setShowFavorites(false)}
+              className={!showFavorites ? "bg-purple-600" : ""}
+            >
+              전체
+            </Button>
+            <Button
+              variant={showFavorites ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowFavorites(true)}
               className={showFavorites ? "bg-purple-600" : ""}
             >
-              <Heart className="w-4 h-4 mr-1" />
-              즐겨찾기만
+              즐겨찾기 ({favoriteCards.length})
             </Button>
           </div>
         </div>
 
-        {/* 통계 */}
-        <div className="flex gap-4">
-          <Card className="flex-1">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{collectedCards.length}</p>
-              <p className="text-sm text-gray-600">전체 명함</p>
-            </CardContent>
-          </Card>
-          <Card className="flex-1">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-purple-600">{favoriteCards.length}</p>
-              <p className="text-sm text-gray-600">즐겨찾기</p>
-            </CardContent>
-          </Card>
-        </div>
+
 
         {/* 명함 목록 */}
         <div className="space-y-4">
@@ -161,43 +154,79 @@ export default function SavedCardsPage() {
               if (!card) return null
 
               return (
-                <Card key={collection.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card
+                  key={collection.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow relative"
+                  onClick={() => router.push(`/saved-cards/${collection.id}`)}
+                >
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {card.full_name?.charAt(0) || 'U'}
-                          </span>
-                        </div>
-
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">{card.full_name || '이름 없음'}</h3>
-                          <p className="text-sm text-gray-600">
-                            {card.role || '직책 없음'} @ {card.company || '회사 없음'}
-                          </p>
-                          {card.email && (
-                            <p className="text-xs text-gray-500">{card.email}</p>
-                          )}
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">
+                          {card.full_name?.charAt(0) || 'U'}
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleFavorite(collection.id, collection.is_favorite || false)}
-                          className={collection.is_favorite ? "text-red-500" : "text-gray-400"}
-                        >
-                          <Heart className={`w-4 h-4 ${collection.is_favorite ? "fill-current" : ""}`} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/saved-cards/${collection.id}`)}
-                        >
-                          상세보기
-                        </Button>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900">{card.full_name || '이름 없음'}</h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleFavorite(collection.id, !collection.is_favorite)
+                            }}
+                            className={collection.is_favorite ? "text-yellow-500" : "text-gray-400"}
+                          >
+                            <Star className={`w-4 h-4 ${collection.is_favorite ? "fill-current" : ""}`} />
+                          </Button>
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-2">
+                          {card.company || '회사 없음'} / {card.role || '직책 없음'}
+                        </p>
+
+                        {/* 키워드 태그 */}
+                        {card.keywords && card.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {card.keywords.slice(0, 3).map((keyword: string, index: number) => (
+                              <span key={index} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 메모 */}
+                        {collection.memo && (
+                          <div className="flex items-start gap-2 mb-2">
+                            <p className="text-sm text-gray-600 flex-1">{collection.memo}</p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/saved-cards/${collection.id}`)
+                              }}
+                              className="text-gray-400 p-1"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* 수집 정보 */}
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{new Date(collection.collected_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                          })}</span>
+                          {collection.event_id && (
+                            <span>이벤트에서 수집</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/use-auth'
 import { useBusinessCards } from '@/hooks/use-business-cards'
-import { ArrowLeft, Calendar, Heart, Mail, MapPin, Phone, Share } from 'lucide-react'
+import { collectedCardAPI } from '@/lib/supabase/database'
+import { ArrowLeft, Calendar, Mail, MapPin, Phone, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -53,12 +54,28 @@ export default function SavedCardDetailPage() {
     if (!collection) return
 
     try {
-      await toggleFavorite(collection.id, !collection.is_favorite)
-      setCollection((prev: any) => prev ? { ...prev, is_favorite: !prev.is_favorite } : null)
-      toast.success(collection.is_favorite ? '즐겨찾기에서 제거했습니다' : '즐겨찾기에 추가했습니다')
+      const success = await collectedCardAPI.toggleFavorite(collection.id, !collection.is_favorite)
+      if (success) {
+        setCollection((prev: any) => prev ? { ...prev, is_favorite: !prev.is_favorite } : null)
+        toast.success(collection.is_favorite ? '즐겨찾기에서 제거했습니다' : '즐겨찾기에 추가했습니다')
+      }
     } catch (error) {
       console.error('즐겨찾기 토글 오류:', error)
       toast.error('즐겨찾기 변경에 실패했습니다')
+    }
+  }
+
+  const handleSaveMemo = async () => {
+    if (!collection) return
+
+    try {
+      const success = await collectedCardAPI.updateMemo(collection.id, memo)
+      if (success) {
+        toast.success('메모가 저장되었습니다')
+      }
+    } catch (error) {
+      console.error('메모 저장 오류:', error)
+      toast.error('메모 저장에 실패했습니다')
     }
   }
 
@@ -128,37 +145,65 @@ export default function SavedCardDetailPage() {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-3xl">
                     {card.full_name?.charAt(0) || 'U'}
                   </span>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{card.full_name || '이름 없음'}</h2>
-                  <p className="text-gray-600">
-                    {card.role || '직책 없음'} @ {card.company || '회사 없음'}
+                  <h2 className="text-2xl font-bold text-gray-900">{card.full_name || '이름 없음'}</h2>
+                  <p className="text-gray-600 text-lg mb-1">
+                    {card.introduction || '소개가 없습니다'}
                   </p>
+                  <p className="text-gray-600">
+                    {card.age && `${card.age}세 • `}{card.company || '회사 없음'} / {card.role || '직책 없음'}
+                  </p>
+                  {card.mbti && (
+                    <p className="text-gray-600">MBTI: {card.mbti}</p>
+                  )}
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleToggleFavorite}
-                className={collection.is_favorite ? "text-red-500" : "text-gray-400"}
+                className={collection.is_favorite ? "text-yellow-500" : "text-gray-400"}
               >
-                <Heart className={`w-5 h-5 ${collection.is_favorite ? "fill-current" : ""}`} />
+                <Star className={`w-6 h-6 ${collection.is_favorite ? "fill-current" : ""}`} />
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {card.introduction && (
+          <CardContent className="space-y-6">
+            {/* 성격 */}
+            {card.keywords && card.keywords.length > 0 && (
               <div>
-                <h3 className="font-medium text-gray-900 mb-2">소개</h3>
-                <p className="text-gray-600 text-sm">{card.introduction}</p>
+                <h3 className="font-medium text-gray-900 mb-3">성격</h3>
+                <div className="flex flex-wrap gap-2">
+                  {card.keywords.slice(0, 3).map((keyword: string, index: number) => (
+                    <Badge key={index} className="bg-purple-100 text-purple-700 border-purple-200">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4">
+            {/* 관심사 */}
+            {card.keywords && card.keywords.length > 3 && (
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">관심사</h3>
+                <div className="flex flex-wrap gap-2">
+                  {card.keywords.slice(3).map((keyword: string, index: number) => (
+                    <Badge key={index} variant="outline">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 연락처 */}
+            <div className="space-y-3">
               {card.email && (
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-gray-500" />
@@ -169,48 +214,36 @@ export default function SavedCardDetailPage() {
                 </div>
               )}
 
-              {card.phone && (
+              {card.contact && (
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">전화번호</p>
-                    <p className="font-medium">{card.phone}</p>
+                    <p className="text-sm text-gray-500">연락처</p>
+                    <p className="font-medium">{card.contact}</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 개인 정보 */}
-            {(card.age || card.mbti) && (
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900">개인 정보</h3>
-                <div className="flex gap-2">
-                  {card.age && <Badge variant="outline">{card.age}</Badge>}
-                  {card.mbti && <Badge variant="outline">{card.mbti}</Badge>}
-                </div>
-              </div>
-            )}
-
-            {/* 관심사 */}
-            {card.interests && card.interests.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900">관심사</h3>
-                <div className="flex flex-wrap gap-2">
-                  {card.interests.map((interest: string, index: number) => (
-                    <Badge key={index} variant="outline">{interest}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 취미 */}
-            {card.hobbies && card.hobbies.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900">취미</h3>
-                <div className="flex flex-wrap gap-2">
-                  {card.hobbies.map((hobby: string, index: number) => (
-                    <Badge key={index} variant="outline">{hobby}</Badge>
-                  ))}
+            {/* 외부 링크 */}
+            {card.external_link && (
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">링크</h3>
+                <div className="space-y-2">
+                  <Card className="bg-gray-50">
+                    <CardContent className="p-3">
+                      <p className="font-medium">Medium</p>
+                      <p className="text-sm text-gray-600">medium.com</p>
+                    </CardContent>
+                  </Card>
+                  <a
+                    href={card.external_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-700 text-sm"
+                  >
+                    {card.external_link}
+                  </a>
                 </div>
               </div>
             )}
@@ -222,13 +255,16 @@ export default function SavedCardDetailPage() {
           <CardHeader>
             <CardTitle className="text-lg">메모</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <Textarea
               placeholder="이 사람에 대한 메모를 작성해보세요..."
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               className="min-h-[100px]"
             />
+            <Button onClick={handleSaveMemo} className="w-full">
+              메모 저장
+            </Button>
           </CardContent>
         </Card>
 
@@ -260,25 +296,10 @@ export default function SavedCardDetailPage() {
           </CardContent>
         </Card>
 
-        {/* 액션 버튼들 */}
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleShare}
-          >
-            <Share className="w-4 h-4 mr-2" />
-            공유하기
-          </Button>
-
-          <Button
-            variant="destructive"
-            className="flex-1"
-            onClick={handleRemoveCard}
-          >
-            삭제하기
-          </Button>
-        </div>
+        {/* 명함 수집하기 버튼 */}
+        <Button className="w-full bg-purple-600 hover:bg-purple-700">
+          명함 수집하기
+        </Button>
       </div>
     </div>
   )

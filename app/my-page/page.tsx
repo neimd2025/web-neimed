@@ -1,15 +1,18 @@
 "use client"
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
-import { ArrowLeft, LogOut, Settings, User } from 'lucide-react'
+import { useUserProfile } from '@/hooks/use-user-profile'
+import { ArrowLeft, Calendar, LogOut, MapPin, Settings, User } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function MyPage() {
   const { user, signOut, adminUser } = useAuth()
+  const { profile, loading } = useUserProfile()
   const router = useRouter()
 
   useEffect(() => {
@@ -61,17 +64,168 @@ export default function MyPage() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
                 <User className="w-8 h-8 text-white" />
-                      </div>
-                            <div>
-                <h3 className="font-semibold text-gray-900">{user.email}</h3>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {profile?.full_name || user.email?.split('@')[0] || '사용자'}
+                </h3>
                 <p className="text-sm text-gray-600">가입일: {new Date(user.created_at).toLocaleDateString()}</p>
                 {adminUser && (
                   <p className="text-sm text-purple-600 font-medium">관리자</p>
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 프로필 상세 정보 */}
+        {profile && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">프로필 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 기본 정보 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {profile.birth_date && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      생년월일: {new Date(profile.birth_date).toLocaleDateString('ko-KR')}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+
+                {profile.affiliation && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      소속: {profile.affiliation}
+                    </span>
+                  </div>
+                )}
+
+                {profile.role && (
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      역할: {profile.role}
+                    </span>
+                  </div>
+                )}
+
+                {profile.contact && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      연락처: {profile.contact}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* MBTI */}
+              {profile.mbti && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">MBTI</h4>
+                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                    {profile.mbti}
+                  </Badge>
+                </div>
+              )}
+
+              {/* 성격 키워드 */}
+              {profile.personality_keywords && profile.personality_keywords.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">성격 키워드</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.personality_keywords.map((keyword, index) => (
+                      <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 관심 키워드 */}
+              {profile.interest_keywords && profile.interest_keywords.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">관심 키워드</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.interest_keywords.map((keyword, index) => (
+                      <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 자기소개 */}
+              {profile.introduction && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">자기소개</h4>
+                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                    {profile.introduction}
+                  </p>
+                </div>
+              )}
+
+              {/* 외부 링크 */}
+              {profile.external_link && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">외부 링크</h4>
+                  <a
+                    href={profile.external_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-purple-600 hover:text-purple-700 underline"
+                  >
+                    {profile.external_link}
+                  </a>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 프로필 완성도 */}
+        {profile && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">프로필 완성도</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">기본 정보</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {profile.full_name ? '완료' : '미완료'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">성격 키워드</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {profile.personality_keywords && profile.personality_keywords.length > 0 ? '완료' : '미완료'}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(() => {
+                        let completed = 0;
+                        if (profile.full_name) completed++;
+                        if (profile.personality_keywords && profile.personality_keywords.length > 0) completed++;
+                        return (completed / 2) * 100;
+                      })()}%`
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 메뉴 */}
         <div className="space-y-4">
