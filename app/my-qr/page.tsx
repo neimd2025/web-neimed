@@ -26,7 +26,7 @@ export default function MyQRPage() {
       }
 
       try {
-        // 유틸리티 함수를 사용하여 QR 코드 URL 생성
+        // 유틸리티 함수를 사용하여 QR명명명 코드 URL 생성
         const qrCodeUrl = generateQRCodeUrl(userCard.id)
         setQrUrl(qrCodeUrl)
 

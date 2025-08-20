@@ -20,32 +20,21 @@ export default function ScanCardPage() {
   const webcamRef = useRef<Webcam>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // 카메라 권한 요청 및 활성화
+  // 카메라 초기화
   useEffect(() => {
     const initializeCamera = async () => {
       try {
         setIsLoading(true)
         setCameraError(null)
 
-        // 카메라 권한 확인
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          })
-
-          console.log('카메라 권한 획득 성공')
-          setIsCameraActive(true)
-          setIsScanning(true)
-
-          // 스트림 정리
-          stream.getTracks().forEach(track => track.stop())
-        } else {
+        // 카메라 지원 여부 확인
+        if (!navigator.mediaDevices) {
           throw new Error('카메라를 지원하지 않는 브라우저입니다.')
         }
+
+        console.log('카메라 지원 확인 완료')
+        setIsCameraActive(true)
+        setIsScanning(true)
       } catch (error: any) {
         console.error('카메라 초기화 오류:', error)
         setCameraError(error.message || '카메라를 시작할 수 없습니다.')
