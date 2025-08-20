@@ -24,7 +24,7 @@ export function getSiteUrl(): string {
   // 서버 사이드에서는 환경에 따라 결정
   const isProduction = process.env.NODE_ENV === 'production'
   return isProduction
-    ? 'https://your-production-domain.com' // 배포 시 실제 도메인으로 변경
+    ? 'https://web-neimed.vercel.app' // Vercel 배포 URL
     : 'http://localhost:3000'
 }
 
