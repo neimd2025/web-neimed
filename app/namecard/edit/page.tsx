@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useUserProfile } from '@/hooks/use-user-profile'
+import { useBusinessCards } from '@/hooks/use-business-cards'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Camera, User } from 'lucide-react'
@@ -36,9 +37,10 @@ const profileSchema = z.object({
 
 type ProfileFormData = z.infer<typeof profileSchema>
 
-export default function EditProfilePage() {
+export default function EditNamecardPage() {
   const router = useRouter()
-  const { profile, updateProfile, loading } = useUserProfile()
+  const { profile, updateProfile, createProfile, loading } = useUserProfile()
+  const { userCard, createBusinessCard, updateBusinessCard } = useBusinessCards()
 
   const {
     register,
@@ -101,11 +103,6 @@ export default function EditProfilePage() {
   ]
 
   const onSubmit = async (data: ProfileFormData) => {
-    if (!profile) {
-      toast.error('프로필을 불러올 수 없습니다.')
-      return
-    }
-
     try {
       // 빈 문자열들을 null로 변환
       const cleanedData = {
@@ -122,13 +119,62 @@ export default function EditProfilePage() {
         external_link: data.external_link || null
       }
 
-      await updateProfile(cleanedData)
+      let updatedProfile
 
-      toast.success('프로필이 성공적으로 수정되었습니다!')
-      router.push('/my-page')
+      // 프로필이 없으면 생성, 있으면 업데이트
+      if (!profile) {
+        updatedProfile = await createProfile(cleanedData)
+        toast.success('명함이 성공적으로 생성되었습니다!')
+      } else {
+        updatedProfile = await updateProfile(cleanedData)
+        toast.success('명함이 성공적으로 수정되었습니다!')
+      }
+
+      // 명함이 없으면 프로필 정보로 명함 생성
+      if (!userCard && updatedProfile) {
+        try {
+          const businessCardData = {
+            full_name: updatedProfile.full_name,
+            introduction: updatedProfile.introduction || '안녕하세요!',
+            company: updatedProfile.affiliation,
+            role: updatedProfile.role,
+            contact: updatedProfile.contact,
+            mbti: updatedProfile.mbti,
+            keywords: updatedProfile.personality_keywords,
+            external_link: updatedProfile.external_link,
+            is_public: true
+          }
+
+          await createBusinessCard(businessCardData)
+        } catch (cardError) {
+          console.error('명함 생성 오류:', cardError)
+          toast.error('일부 정보 저장에 실패했습니다.')
+        }
+      } else if (userCard && updatedProfile) {
+        // 기존 명함이 있으면 업데이트
+        try {
+          const businessCardUpdates = {
+            full_name: updatedProfile.full_name,
+            introduction: updatedProfile.introduction,
+            company: updatedProfile.affiliation,
+            role: updatedProfile.role,
+            contact: updatedProfile.contact,
+            mbti: updatedProfile.mbti,
+            keywords: updatedProfile.personality_keywords,
+            external_link: updatedProfile.external_link
+          }
+
+          await updateBusinessCard(userCard.id, businessCardUpdates)
+        } catch (cardError) {
+          console.error('명함 업데이트 오류:', cardError)
+          toast.error('일부 정보 업데이트에 실패했습니다.')
+        }
+      }
+
+      router.push('/home')
     } catch (error) {
-      console.error('프로필 수정 오류:', error)
-      toast.error('프로필 수정에 실패했습니다.')
+      console.error('프로필 처리 오류:', error)
+      toast.error('프로필 처리에 실패했습니다.')
     }
   }
 
@@ -161,12 +207,12 @@ export default function EditProfilePage() {
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/my-page">
+          <Link href="/my-namecard">
             <Button variant="ghost" size="sm" className="p-2">
               <ArrowLeft className="w-4 h-4 text-gray-900" />
             </Button>
           </Link>
-          <h1 className="text-lg font-bold text-gray-900">프로필 수정</h1>
+          <h1 className="text-lg font-bold text-gray-900">내 명함 수정</h1>
           <div className="w-10"></div>
         </div>
       </div>
@@ -218,8 +264,12 @@ export default function EditProfilePage() {
 
             {/* 제목과 설명 */}
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">프로필 수정</h2>
-              <p className="text-gray-600">명함 정보를 수정하세요</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {profile ? '내 명함 수정' : '내 명함 만들기'}
+              </h2>
+              <p className="text-gray-600">
+                {profile ? '명함 정보를 수정하세요' : '나만의 디지털 명함을 만들어보세요'}
+              </p>
             </div>
 
             {/* 입력 폼 */}
@@ -425,7 +475,7 @@ export default function EditProfilePage() {
                 disabled={isSubmitting}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-medium"
               >
-                {isSubmitting ? '저장 중...' : '수정 완료'}
+                {isSubmitting ? '저장 중...' : (profile ? '명함 수정 완료' : '명함 생성하기')}
               </Button>
             </form>
           </motion.div>

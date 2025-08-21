@@ -1,22 +1,26 @@
 "use client"
 
+import DeleteAccountModal from '@/components/delete-account-modal'
 import { useLoading } from '@/components/loading-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
+import { useBusinessCards } from '@/hooks/use-business-cards'
 import { useUserProfile } from '@/hooks/use-user-profile'
-import { Calendar, LogOut, MapPin, Settings, Shield, User, UserCheck } from 'lucide-react'
+import { LogOut, Settings, Shield, Trash2, User, UserCheck } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function MyPage() {
   const { user, signOut, adminUser, isAdmin } = useAuth()
   const { profile } = useUserProfile()
+  const { userCard } = useBusinessCards()
   const { isLoading } = useLoading()
   const router = useRouter()
   const pathname = usePathname()
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -37,8 +41,80 @@ export default function MyPage() {
     router.push("/home")
   }
 
+  const handleDeleteAccount = () => {
+    setShowDeleteModal(true)
+  }
+
   // 현재 관리자 페이지에 있는지 확인
   const isInAdminPage = pathname?.startsWith('/admin')
+
+  // 사용자 표시 이름 가져오기
+  const getUserDisplayName = () => {
+    if (userCard?.full_name) return userCard.full_name
+    if (profile?.full_name) return profile.full_name
+
+    if (!user) return "사용자"
+
+    if (user.app_metadata?.provider === 'kakao') {
+      return user.user_metadata?.nickname ||
+             user.user_metadata?.full_name ||
+             user.email?.split('@')[0] ||
+             "사용자"
+    }
+
+    return user.user_metadata?.full_name ||
+           user.email?.split('@')[0] ||
+           "사용자"
+  }
+
+  // 사용자 소개 가져오기
+  const getUserIntroduction = () => {
+    return userCard?.introduction || profile?.introduction || "하루하루 의미있게"
+  }
+
+  // 사용자 나이 가져오기 (birth_date에서 계산)
+  const getUserAge = () => {
+    if (profile?.birth_date) {
+      const birthDate = new Date(profile.birth_date)
+      const today = new Date()
+      const age = today.getFullYear() - birthDate.getFullYear()
+      return `${age}세`
+    }
+    return null
+  }
+
+  // 사용자 회사/직책 정보 가져오기
+  const getUserCompanyInfo = () => {
+    const role = userCard?.role || profile?.role
+    const company = userCard?.company || profile?.affiliation
+    if (role && company) return `${role} / ${company}`
+    if (role) return role
+    if (company) return company
+    return null
+  }
+
+  // 사용자 MBTI 가져오기
+  const getUserMbti = () => {
+    return userCard?.mbti || profile?.mbti
+  }
+
+  // 사용자 키워드 가져오기
+  const getUserKeywords = () => {
+    return userCard?.keywords || profile?.personality_keywords
+  }
+
+  // 사용자 링크 정보 가져오기
+  const getUserLinks = () => {
+    const externalLink = userCard?.external_link || profile?.external_link
+    if (externalLink) {
+      return [{
+        title: "외부 링크",
+        description: "추가 정보를 확인하세요",
+        url: externalLink
+      }]
+    }
+    return []
+  }
 
   if (isLoading) {
     return (
@@ -69,221 +145,122 @@ export default function MyPage() {
     <div className="min-h-screen">
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-gray-900">마이페이지</h1>
-        </div>
-        </div>
+        <h1 className="text-xl font-bold text-gray-900">마이페이지</h1>
+      </div>
 
-      <div className="px-5 py-6 space-y-6">
-        {/* 사용자 정보 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">사용자 정보</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center">
-                <User className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">
-                  {profile?.full_name || user.email?.split('@')[0] || '사용자'}
-                </h3>
-                <p className="text-sm text-gray-600">가입일: {new Date(user.created_at).toLocaleDateString()}</p>
-                {adminUser && (
-                  <p className="text-sm text-purple-600 font-medium">관리자</p>
-                )}
-              </div>
+      <div className="p-5 space-y-6">
+        {/* 내 명함 카드 */}
+        <Card className="bg-white border border-gray-200 shadow-lg rounded-xl p-6">
+          {/* 프로필 섹션 */}
+          <div className="text-center mb-6">
+            {/* 프로필 이미지 */}
+            <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto mb-5 flex items-center justify-center">
+              <User className="w-12 h-12 text-gray-600" />
             </div>
-          </CardContent>
-        </Card>
 
-        {/* 프로필 상세 정보 */}
-        {profile && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">프로필 정보</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 기본 정보 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {profile.birth_date && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">
-                      생년월일: {new Date(profile.birth_date).toLocaleDateString('ko-KR')}
-                    </span>
-                  </div>
-                )}
+            {/* 이름과 소개 */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {getUserDisplayName()}
+            </h2>
+            <p className="text-gray-600 text-base mb-4">
+              {getUserIntroduction()}
+            </p>
 
-                {profile.affiliation && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">
-                      소속: {profile.affiliation}
-                    </span>
-                  </div>
-                )}
-
-                {profile.role && (
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">
-                      역할: {profile.role}
-                    </span>
-                  </div>
-                )}
-
-                {profile.contact && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">
-                      연락처: {profile.contact}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* MBTI */}
-              {profile.mbti && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">MBTI</h4>
-                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                    {profile.mbti}
+            {/* 기본 정보 */}
+            <div className="space-y-2 text-sm text-gray-500">
+              {getUserAge() && <p>{getUserAge()}</p>}
+              {getUserCompanyInfo() && <p>{getUserCompanyInfo()}</p>}
+              {getUserMbti() && <p>MBTI: {getUserMbti()}</p>}
+              {isAdmin && (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <Shield className="w-4 h-4 text-purple-600" />
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                    관리자
                   </Badge>
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* 성격 키워드 */}
-              {profile.personality_keywords && profile.personality_keywords.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">성격 키워드</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.personality_keywords.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        {keyword}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 관심 키워드 */}
-              {profile.interest_keywords && profile.interest_keywords.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">관심 키워드</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.interest_keywords.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        {keyword}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 자기소개 */}
-              {profile.introduction && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">자기소개</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                    {profile.introduction}
-                  </p>
-                </div>
-              )}
-
-              {/* 외부 링크 */}
-              {profile.external_link && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">외부 링크</h4>
-                  <a
-                    href={profile.external_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-purple-600 hover:text-purple-700 underline"
-                  >
-                    {profile.external_link}
-                  </a>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 프로필 완성도 */}
-        {profile && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">프로필 완성도</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">기본 정보</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {profile.full_name ? '완료' : '미완료'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">성격 키워드</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {profile.personality_keywords && profile.personality_keywords.length > 0 ? '완료' : '미완료'}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(() => {
-                        let completed = 0;
-                        if (profile.full_name) completed++;
-                        if (profile.personality_keywords && profile.personality_keywords.length > 0) completed++;
-                        return (completed / 2) * 100;
-                      })()}%`
-                    }}
-                  ></div>
+          {/* 태그 섹션들 */}
+          <div className="space-y-6">
+            {/* 성격 키워드 */}
+            {getUserKeywords() && getUserKeywords().length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
+                <div className="flex flex-wrap gap-2">
+                  {getUserKeywords().map((keyword: string, index: number) => (
+                    <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
+                      {keyword}
+                    </Badge>
+                  ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+
+            {/* 링크들 */}
+            {getUserLinks().length > 0 && getUserLinks().map((link: any, index: number) => (
+              <div key={index} className="border border-gray-200 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">- {link.title}</h4>
+                <p className="text-gray-600 text-sm mb-2">{link.description}</p>
+                <p className="text-gray-500 text-sm">{link.url}</p>
+              </div>
+            ))}
+
+            {/* 계정 정보 */}
+            <div className="border-t border-gray-200 pt-4 space-y-2 text-sm text-gray-500">
+              <div className="flex justify-between">
+                <span>이메일</span>
+                <span>{user.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>가입일</span>
+                <span>{new Date(user.created_at).toLocaleDateString('ko-KR')}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* 메뉴 */}
         <div className="space-y-4">
-          <Link href="/profile/edit">
+          <Link href="/namecard/edit">
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <Settings className="w-5 h-5 text-gray-500" />
-                  <span className="font-medium">프로필 수정</span>
+                  <span className="font-medium">내 명함 수정</span>
                 </div>
               </CardContent>
             </Card>
-                </Link>
+          </Link>
 
-          {/* 관리자 페이지 전환 버튼 (관리자만 보이기) */}
-          {adminUser && (
+          {/* 관리자 페이지로 전환 버튼 */}
+          {isAdmin && !isInAdminPage && (
             <div
-              onClick={isInAdminPage ? handleSwitchToUser : handleSwitchToAdmin}
+              onClick={handleSwitchToAdmin}
               className="w-full justify-start cursor-pointer hover:bg-purple-50 p-4 rounded-lg
               flex items-center border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50"
             >
-              {isInAdminPage ? (
-                <>
-                  <UserCheck className="w-5 h-5 mr-3 text-purple-600" />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-purple-700">일반 사용자 페이지로</span>
-                    <span className="text-xs text-purple-500">홈 화면으로 이동하여 일반 사용자 모드로 전환</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Shield className="w-5 h-5 mr-3 text-purple-600" />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-purple-700">관리자 페이지로</span>
-                    <span className="text-xs text-purple-500">관리자 대시보드로 이동하여 관리자 기능 사용</span>
-                  </div>
-                </>
-              )}
+              <Shield className="w-5 h-5 mr-3 text-purple-600" />
+              <div className="flex flex-col">
+                <span className="font-medium text-purple-700">관리자 페이지로</span>
+                <span className="text-xs text-purple-500">관리자 모드로 전환하여 이벤트 관리</span>
+              </div>
+            </div>
+          )}
+
+          {/* 일반 사용자 페이지로 전환 버튼 */}
+          {isInAdminPage && (
+            <div
+              onClick={handleSwitchToUser}
+              className="w-full justify-start cursor-pointer hover:bg-blue-50 p-4 rounded-lg
+              flex items-center border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50"
+            >
+              <UserCheck className="w-5 h-5 mr-3 text-blue-600" />
+              <div className="flex flex-col">
+                <span className="font-medium text-blue-700">일반 사용자 페이지로</span>
+                <span className="text-xs text-blue-500">홈 화면으로 이동하여 일반 사용자 모드로 전환</span>
+              </div>
             </div>
           )}
 
@@ -295,8 +272,24 @@ export default function MyPage() {
             <LogOut className="w-5 h-5 mr-3 text-gray-500" />
             <span className="font-medium">로그아웃</span>
           </div>
+
+          {/* 계정 탈퇴 버튼 */}
+          <div
+            onClick={handleDeleteAccount}
+            className="w-full justify-start cursor-pointer hover:bg-red-50 p-4 rounded-lg
+            flex items-center border border-red-200 bg-red-50"
+          >
+            <Trash2 className="w-5 h-5 mr-3 text-red-500" />
+            <span className="font-medium text-red-600">계정 탈퇴</span>
+          </div>
         </div>
       </div>
+
+      {/* 탈퇴 확인 모달 */}
+      <DeleteAccountModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </div>
   )
 }

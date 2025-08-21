@@ -58,7 +58,7 @@ export default function OnboardingPage() {
           <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
             <span className="text-white font-bold">logo</span>
           </div>
-          <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/home")}>
+          <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/namecard/edit")}>
             건너뛰기
           </Button>
         </div>
@@ -89,7 +89,7 @@ export default function OnboardingPage() {
               className="w-full bg-white text-purple-600 hover:bg-white/90 py-4 text-lg font-semibold rounded-2xl"
               onClick={() => {
                 localStorage.setItem('hasSeenOnboarding', 'true')
-                router.push('/home')
+                router.push('/namecard/edit')
               }}
             >
               시작하기
@@ -137,7 +137,7 @@ export default function OnboardingPage() {
         <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
           <span className="text-white font-bold">logo</span>
         </div>
-        <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/home")}>
+        <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/namecard/edit")}>
           건너뛰기
         </Button>
       </div>

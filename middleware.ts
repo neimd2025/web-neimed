@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getSession()
 
   // 인증이 필요한 페이지들 (새로운 폴더 구조 반영)
-  const protectedRoutes = ['/home', '/my-page', '/profile', '/events', '/saved-cards', '/scan-card', '/my-namecard', '/my-qr', '/notifications', '/business-card', '/onboarding']
+  const protectedRoutes = ['/home', '/my-page', '/namecard', '/events', '/saved-cards', '/scan-card', '/my-namecard', '/my-qr', '/notifications', '/business-card', '/onboarding']
   const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
   // 인증 페이지들
@@ -79,8 +79,46 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // 비밀번호 재설정 상태 체크 (클라이언트 사이드에서 처리하도록 헤더 추가)
+  // 인증된 사용자의 프로필 및 명함 상태 확인
   if (isProtectedRoute && session) {
+    try {
+      // 사용자 프로필 확인
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, personality_keywords')
+        .eq('id', session.user.id)
+        .single()
+
+      // 사용자 명함 확인
+      const { data: businessCard, error: cardError } = await supabase
+        .from('business_cards')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single()
+
+      // 온보딩이나 명함 편집 페이지가 아닌 경우에만 리다이렉트
+      const isOnboardingRoute = req.nextUrl.pathname.startsWith('/onboarding')
+      const isNamecardEditRoute = req.nextUrl.pathname.startsWith('/namecard/edit')
+      
+      if (!isOnboardingRoute && !isNamecardEditRoute) {
+        // 프로필이 없거나 불완전한 경우 명함 생성으로 리다이렉트
+        if (!profile || !profile.full_name || !profile.personality_keywords || profile.personality_keywords.length === 0) {
+          return NextResponse.redirect(new URL('/namecard/edit', req.url))
+        }
+
+        // 프로필은 있지만 명함이 없는 경우도 명함 편집으로 리다이렉트 (명함과 프로필이 함께 생성됨)
+        if (!businessCard) {
+          return NextResponse.redirect(new URL('/namecard/edit', req.url))
+        }
+      }
+    } catch (error) {
+      console.error('Error checking user profile/card:', error)
+      // 에러 발생시 명함 편집으로 리다이렉트
+      if (!req.nextUrl.pathname.startsWith('/namecard/edit') && !req.nextUrl.pathname.startsWith('/onboarding')) {
+        return NextResponse.redirect(new URL('/namecard/edit', req.url))
+      }
+    }
+
     // 비밀번호 재설정 중인지 확인하는 헤더 추가
     const response = NextResponse.next()
     response.headers.set('x-password-reset-check', 'true')
