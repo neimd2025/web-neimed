@@ -11,8 +11,14 @@ const nextConfig = {
     'localhost',
     '127.0.0.1'
   ],
-  // Edge Runtime 경고 억제
-  webpack: (config, { isServer }) => {
+  // Webpack 설정 통합
+  webpack: (config, { dev, isServer }) => {
+    // 개발 환경에서 캐시 최적화
+    if (dev && !isServer) {
+      config.cache = false;
+    }
+
+    // Edge Runtime 경고 억제
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

@@ -1,3 +1,4 @@
+import { ROLE_IDS, ROLE_NAMES, isAdminEmail } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -24,15 +25,9 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // 관리자 이메일 목록 (실제 운영 시에는 환경변수로 관리)
-    const adminEmails = [
-      'admin@named.com',
-      'simjaehyeong@gmail.com',
-      'test@admin.com'
-    ]
-
     // 관리자 회원가입이거나 관리자 이메일인 경우 admin role 설정
-    const userRole = isAdmin || adminEmails.includes(email.toLowerCase()) ? 'admin' : 'user'
+    const userRole = isAdmin || isAdminEmail(email) ? ROLE_NAMES.ADMIN : ROLE_NAMES.USER
+    const roleId = userRole === ROLE_NAMES.ADMIN ? ROLE_IDS.ADMIN : ROLE_IDS.USER
 
     // 사용자 프로필 생성
     const { error: profileError } = await supabase
@@ -44,6 +39,7 @@ export async function POST(request: NextRequest) {
         contact: '',
         company: '',
         role: userRole,
+        role_id: roleId,
         introduction: '',
         mbti: '',
         keywords: [],

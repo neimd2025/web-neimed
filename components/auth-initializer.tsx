@@ -10,7 +10,7 @@ export default function AuthInitializer() {
   useEffect(() => {
     setIsClient(true)
     initializeAuth()
-  }, [initializeAuth])
+  }, []) // initializeAuth 의존성 제거
 
   // 서버사이드 렌더링 중에는 아무것도 렌더링하지 않음
   if (!isClient) {

@@ -32,9 +32,6 @@ export default function AdminSignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showVerification, setShowVerification] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
-  const [signupData, setSignupData] = useState<any>(null)
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'upgrade'>('idle')
   const [emailMessage, setEmailMessage] = useState('')
   const [isUpgradeMode, setIsUpgradeMode] = useState(false)
@@ -141,11 +138,10 @@ export default function AdminSignupPage() {
         }
 
         if (result?.user) {
-          setSignupData(result)
-          setShowVerification(true)
-          toast.success('이메일로 인증 코드를 발송했습니다. 이메일을 확인해주세요.', {
-            description: '💡 이메일이 오지 않는다면 스팸함을 확인해주세요.'
+          toast.success('관리자 계정이 성공적으로 생성되었습니다! 이메일 인증을 완료해주세요.', {
+            description: '💡 이메일 인증 링크를 클릭한 후 로그인해주세요.'
           })
+          router.push('/admin/login')
         }
       }
     } catch (error) {
@@ -156,24 +152,7 @@ export default function AdminSignupPage() {
     }
   }
 
-  const handleVerification = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
 
-    try {
-      // 여기서 인증 코드 확인 로직을 구현해야 합니다
-      // Supabase에서는 이메일 링크 방식이 기본이므로
-      // 별도의 인증 코드 확인 API가 필요할 수 있습니다
-
-      toast.success('관리자 계정이 성공적으로 생성되었습니다!')
-              router.push('/admin/login')
-    } catch (error) {
-      console.error('인증 오류:', error)
-      toast.error('인증 코드가 올바르지 않습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -193,8 +172,7 @@ export default function AdminSignupPage() {
           </p>
         </div>
 
-        {!showVerification ? (
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -338,51 +316,6 @@ export default function AdminSignupPage() {
               </p>
             </div>
           </form>
-        ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleVerification}>
-            <div>
-              <Label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700">
-                인증 코드
-              </Label>
-              <div className="mt-1 relative">
-                <Input
-                  id="verificationCode"
-                  name="verificationCode"
-                  type="text"
-                  required
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  className="pl-10"
-                  placeholder="이메일로 받은 6자리 코드"
-                />
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                {signupData?.user?.email}로 전송된 인증 코드를 입력해주세요
-              </p>
-            </div>
-
-            <div>
-              <Button
-                type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-700"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? '인증 중...' : '인증 완료'}
-              </Button>
-            </div>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setShowVerification(false)}
-                className="text-sm text-purple-600 hover:text-purple-500"
-              >
-                ← 회원가입으로 돌아가기
-              </button>
-            </div>
-          </form>
-        )}
       </div>
     </div>
   )

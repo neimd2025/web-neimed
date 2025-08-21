@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('user_profiles')
       .update({
+        role: 'admin',
         role_id: adminRole.id,
         full_name: name,
         updated_at: new Date().toISOString()

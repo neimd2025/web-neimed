@@ -1,5 +1,6 @@
 "use client"
 
+import { useLoading } from '@/components/loading-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +13,8 @@ import { useEffect } from 'react'
 
 export default function MyPage() {
   const { user, signOut, adminUser, isAdmin } = useAuth()
-  const { profile, loading } = useUserProfile()
+  const { profile } = useUserProfile()
+  const { isLoading } = useLoading()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -37,6 +39,17 @@ export default function MyPage() {
 
   // 현재 관리자 페이지에 있는지 확인
   const isInAdminPage = pathname?.startsWith('/admin')
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!user) {
     return (

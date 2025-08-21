@@ -6,7 +6,7 @@ import { useAuth } from './use-auth'
 type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 
 export const useUserProfile = () => {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +39,17 @@ export const useUserProfile = () => {
       setLoading(false)
     }
   }
+
+  // 인증 로딩이 완료된 후에만 프로필 로드
+  useEffect(() => {
+    if (!authLoading && user?.id) {
+      loadProfile()
+    } else if (!authLoading && !user?.id) {
+      // 인증이 완료되었지만 사용자가 없는 경우
+      setProfile(null)
+      setLoading(false)
+    }
+  }, [user?.id, authLoading])
 
   // 프로필 생성
   const createProfile = async (profileData: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>) => {
@@ -160,11 +171,6 @@ export const useUserProfile = () => {
       profile.personality_keywords.length > 0
     )
   }
-
-  // 초기 로드
-  useEffect(() => {
-    loadProfile()
-  }, [user?.id])
 
   return {
     profile,

@@ -49,7 +49,7 @@ interface Participant {
 
 export default function AdminEventsPage() {
   const router = useRouter()
-  const { adminUser } = useAuthStore()
+  const { adminUser, adminLoading } = useAuthStore()
   const { profile } = useUserProfile()
   const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("ongoing")
   const [events, setEvents] = useState<Event[]>([])
@@ -61,41 +61,48 @@ export default function AdminEventsPage() {
   const [participants, setParticipants] = useState<Participant[]>([])
   const [noticeTitle, setNoticeTitle] = useState("")
   const [noticeMessage, setNoticeMessage] = useState("")
-  const supabase = createClient()
-
   // 이벤트 데이터 가져오기
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true)
+    // 인증 로딩이 완료된 후에만 이벤트 데이터 로드
+    if (!adminLoading && adminUser) {
+      const fetchEvents = async () => {
+        try {
+          setLoading(true)
 
-                        // 이벤트 데이터 가져오기
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .order('created_at', { ascending: false })
+          const supabase = createClient()
+          // 이벤트 데이터 가져오기
+          const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .order('created_at', { ascending: false })
 
-        if (error) {
+          if (error) {
+            logError('이벤트 가져오기 오류:', error)
+            toast.error('이벤트를 불러오는데 실패했습니다.')
+            return
+          }
+
+          setEvents(data || [])
+        } catch (error) {
           logError('이벤트 가져오기 오류:', error)
           toast.error('이벤트를 불러오는데 실패했습니다.')
-          return
+        } finally {
+          setLoading(false)
         }
-
-        setEvents(data || [])
-      } catch (error) {
-        logError('이벤트 가져오기 오류:', error)
-        toast.error('이벤트를 불러오는데 실패했습니다.')
-      } finally {
-        setLoading(false)
       }
-    }
 
-    fetchEvents()
-  }, [supabase])
+      fetchEvents()
+    } else if (!adminLoading && !adminUser) {
+      // 인증이 완료되었지만 관리자가 아닌 경우
+      setLoading(false)
+      router.push('/login')
+    }
+  }, [adminLoading, adminUser, router]) // supabase 의존성 제거
 
   // 참여자 데이터 가져오기
   const fetchParticipants = async (eventId: string) => {
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_participants')
         .select(`
@@ -178,6 +185,7 @@ export default function AdminEventsPage() {
     try {
       setLoading(true)
 
+      const supabase = createClient()
       // 1. 이벤트 참가자 목록 가져오기
       const { data: participants, error: participantsError } = await supabase
         .from('event_participants')
@@ -280,6 +288,19 @@ export default function AdminEventsPage() {
     setShowQRBottomSheet(true)
   }
 
+  // 인증 로딩 중
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">인증 확인 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 관리자가 아닌 경우
   if (!adminUser) {
     router.push('/admin/login')
     return null

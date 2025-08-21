@@ -1,3 +1,4 @@
+import { ROLE_IDS, ROLE_NAMES } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/middleware'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -31,18 +32,44 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/admin/login', req.url))
     }
 
-    // Admin 권한 확인 (user_metadata에서 isAdmin 확인)
-    const isAdmin = session.user?.user_metadata?.isAdmin === true
-    if (!isAdmin) {
+    // Admin 권한 확인 - user_profiles 테이블에서 role 확인
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('role, role_id')
+        .eq('id', session.user.id)
+        .single()
+
+      if (error || !profile) {
+        return NextResponse.redirect(new URL('/admin/login', req.url))
+      }
+
+      const isAdmin = profile.role === ROLE_NAMES.ADMIN || profile.role_id === ROLE_IDS.ADMIN
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL('/admin/login', req.url))
+      }
+    } catch (error) {
       return NextResponse.redirect(new URL('/admin/login', req.url))
     }
   }
 
   // Admin 인증 페이지에서 이미 로그인된 관리자 처리
   if (isAdminAuthRoute && session) {
-    const isAdmin = session.user?.user_metadata?.isAdmin === true
-    if (isAdmin) {
-      return NextResponse.redirect(new URL('/admin/events', req.url))
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('role, role_id')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!error && profile) {
+        const isAdmin = profile.role === ROLE_NAMES.ADMIN || profile.role_id === ROLE_IDS.ADMIN
+        if (isAdmin) {
+          return NextResponse.redirect(new URL('/admin/events', req.url))
+        }
+      }
+    } catch (error) {
+      // 에러가 발생하면 그냥 로그인 페이지에 머무름
     }
   }
 

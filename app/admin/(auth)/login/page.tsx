@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuthStore } from "@/stores/auth-store"
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, Lock, LogOut, Mail } from "lucide-react"
 import Link from "next/link"
@@ -22,7 +22,7 @@ type AdminLoginFormData = z.infer<typeof adminLoginSchema>
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const { user, loading: authLoading, adminUser, signInWithEmail, signOut } = useAuth()
+  const { user, loading: authLoading, adminUser, signInWithEmail, signOut } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 

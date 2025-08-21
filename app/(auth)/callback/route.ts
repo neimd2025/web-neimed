@@ -1,3 +1,4 @@
+import { ROLE_NAMES, isAdminEmail } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -20,14 +21,7 @@ export async function GET(request: NextRequest) {
         const existingProfile = await userProfileAPI.getUserProfile(data.user.id)
 
         if (!existingProfile) {
-          // 관리자 이메일 목록 (실제 운영 시에는 환경변수로 관리)
-          const adminEmails = [
-            'admin@named.com',
-            'simjaehyeong@gmail.com',
-            'test@admin.com'
-          ]
-
-          const userRole = adminEmails.includes(data.user.email?.toLowerCase() || '') ? 'admin' : 'user'
+          const userRole = isAdminEmail(data.user.email || '') ? ROLE_NAMES.ADMIN : ROLE_NAMES.USER
 
           // 사용자 프로필 생성
           await userProfileAPI.createUserProfile({

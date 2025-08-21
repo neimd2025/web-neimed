@@ -1,3 +1,4 @@
+import { ROLE_IDS, ROLE_NAMES } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/client'
 import { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
@@ -13,7 +14,7 @@ const checkUserRole = async (userId: string) => {
       .single()
 
     if (!error && profile) {
-      const isAdmin = profile.role === 'admin' || profile.role_id === 2
+      const isAdmin = profile.role === ROLE_NAMES.ADMIN || profile.role_id === ROLE_IDS.ADMIN
       return { profile, isAdmin }
     } else {
       return { profile: null, isAdmin: false }

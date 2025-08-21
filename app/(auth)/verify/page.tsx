@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ROLE_IDS, ROLE_NAMES, isAdminEmail } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/client'
 import { CheckCircle, Mail, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
@@ -52,15 +53,8 @@ export default function VerifyPage() {
       } else if (data.user) {
         // 인증 완료 후 프로필과 비즈니스 카드 생성
         try {
-          // 관리자 이메일 목록
-          const adminEmails = [
-            'admin@named.com',
-            'simjaehyeong@gmail.com',
-            'test@admin.com'
-          ]
-
-          const userRole = adminEmails.includes(data.user.email?.toLowerCase() || '') ? 'admin' : 'user'
-          const roleId = userRole === 'admin' ? 2 : 1 // admin: 2, user: 1
+          const userRole = isAdminEmail(data.user.email || '') ? ROLE_NAMES.ADMIN : ROLE_NAMES.USER
+          const roleId = userRole === ROLE_NAMES.ADMIN ? ROLE_IDS.ADMIN : ROLE_IDS.USER
 
           // 프로필 생성
           const { error: profileError } = await supabase
