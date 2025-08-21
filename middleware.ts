@@ -101,21 +101,24 @@ export async function middleware(req: NextRequest) {
       const isNamecardEditRoute = req.nextUrl.pathname.startsWith('/namecard/edit')
       
       if (!isOnboardingRoute && !isNamecardEditRoute) {
-        // 프로필이 없거나 불완전한 경우 명함 생성으로 리다이렉트
+        // 온보딩을 본 적이 있는지 확인 (쿠키나 로컬스토리지 체크 불가하므로 프로필 상태로 판단)
+        const hasSeenOnboarding = profile && profile.full_name && profile.personality_keywords && profile.personality_keywords.length > 0
+        
+        // 프로필이 없거나 불완전한 경우 온보딩으로 리다이렉트
         if (!profile || !profile.full_name || !profile.personality_keywords || profile.personality_keywords.length === 0) {
-          return NextResponse.redirect(new URL('/namecard/edit', req.url))
+          return NextResponse.redirect(new URL('/onboarding', req.url))
         }
 
-        // 프로필은 있지만 명함이 없는 경우도 명함 편집으로 리다이렉트 (명함과 프로필이 함께 생성됨)
-        if (!businessCard) {
+        // 프로필은 완성되었지만 명함이 없는 경우 명함 편집으로 리다이렉트
+        if (hasSeenOnboarding && !businessCard) {
           return NextResponse.redirect(new URL('/namecard/edit', req.url))
         }
       }
     } catch (error) {
       console.error('Error checking user profile/card:', error)
-      // 에러 발생시 명함 편집으로 리다이렉트
+      // 에러 발생시 온보딩으로 리다이렉트
       if (!req.nextUrl.pathname.startsWith('/namecard/edit') && !req.nextUrl.pathname.startsWith('/onboarding')) {
-        return NextResponse.redirect(new URL('/namecard/edit', req.url))
+        return NextResponse.redirect(new URL('/onboarding', req.url))
       }
     }
 

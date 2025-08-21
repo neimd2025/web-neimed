@@ -58,7 +58,21 @@ export default function OnboardingPage() {
           <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
             <span className="text-white font-bold">logo</span>
           </div>
-          <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/namecard/edit")}>
+          <Button variant="ghost" className="text-white hover:bg-white/10" onClick={async () => {
+            try {
+              // 온보딩 완료 API 호출
+              await fetch('/api/user/complete-onboarding', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              })
+              localStorage.setItem('hasSeenOnboarding', 'true')
+            } catch (error) {
+              console.error('온보딩 완료 처리 중 오류:', error)
+            }
+            router.push("/namecard/edit")
+          }}>
             건너뛰기
           </Button>
         </div>
@@ -87,9 +101,29 @@ export default function OnboardingPage() {
           <div className="w-full max-w-sm space-y-6">
             <Button
               className="w-full bg-white text-purple-600 hover:bg-white/90 py-4 text-lg font-semibold rounded-2xl"
-              onClick={() => {
-                localStorage.setItem('hasSeenOnboarding', 'true')
-                router.push('/namecard/edit')
+              onClick={async () => {
+                try {
+                  // 온보딩 완료 API 호출
+                  const response = await fetch('/api/user/complete-onboarding', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                  })
+
+                  if (response.ok) {
+                    localStorage.setItem('hasSeenOnboarding', 'true')
+                    router.push('/namecard/edit')
+                  } else {
+                    console.error('온보딩 완료 처리 실패')
+                    // 실패해도 명함 생성으로 이동
+                    router.push('/namecard/edit')
+                  }
+                } catch (error) {
+                  console.error('온보딩 완료 처리 중 오류:', error)
+                  // 에러 발생해도 명함 생성으로 이동
+                  router.push('/namecard/edit')
+                }
               }}
             >
               시작하기
@@ -137,7 +171,21 @@ export default function OnboardingPage() {
         <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
           <span className="text-white font-bold">logo</span>
         </div>
-        <Button variant="ghost" className="text-white hover:bg-white/10" onClick={() => router.push("/namecard/edit")}>
+        <Button variant="ghost" className="text-white hover:bg-white/10" onClick={async () => {
+          try {
+            // 온보딩 완료 API 호출
+            await fetch('/api/user/complete-onboarding', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            })
+            localStorage.setItem('hasSeenOnboarding', 'true')
+          } catch (error) {
+            console.error('온보딩 완료 처리 중 오류:', error)
+          }
+          router.push("/namecard/edit")
+        }}>
           건너뛰기
         </Button>
       </div>
