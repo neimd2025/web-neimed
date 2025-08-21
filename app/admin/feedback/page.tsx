@@ -126,7 +126,18 @@ export default function AdminFeedbackPage() {
 
         {/* Feedback List */}
         <div className="space-y-4">
-          {feedbacks.map((feedback) => (
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">피드백 데이터를 불러오는 중입니다...</p>
+            </div>
+          ) : feedbacks.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">아직 피드백이 없습니다.</p>
+            </div>
+          ) : (
+            feedbacks.map((feedback) => (
             <Card key={feedback.id} className="border border-gray-200">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
@@ -169,13 +180,6 @@ export default function AdminFeedbackPage() {
             </Card>
           ))}
         </div>
-
-        {feedbacks.length === 0 && (
-          <div className="text-center py-12">
-            <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">아직 피드백이 없습니다.</p>
-          </div>
-        )}
       </div>
     </div>
   )

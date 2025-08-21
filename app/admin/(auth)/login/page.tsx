@@ -188,11 +188,16 @@ export default function AdminLoginPage() {
             </Button>
           </div>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
               관리자 계정이 없으신가요?{' '}
               <Link href="/admin/signup" className="font-medium text-purple-600 hover:text-purple-500">
                 관리자 회원가입
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600">
+              <Link href="/forgot-password" className="font-medium text-purple-600 hover:text-purple-500">
+                비밀번호를 잊으셨나요?
               </Link>
             </p>
           </div>

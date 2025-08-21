@@ -125,8 +125,8 @@ export default function AdminMembersPage() {
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">회원 데이터를 불러오는 중입니다...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">회원 데이터를 불러오는 중입니다...</p>
             </div>
           ) : filteredMembers.length === 0 ? (
             <div className="text-center py-12">

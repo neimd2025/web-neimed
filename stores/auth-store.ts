@@ -33,6 +33,8 @@ interface AuthState {
   isAdmin: boolean
   adminLoading: boolean
   adminInitialized: boolean
+  passwordResetInProgress: boolean
+  passwordResetEmail: string | null
 
   // Actions
   setUser: (user: User | null) => void
@@ -43,6 +45,8 @@ interface AuthState {
   setIsAdmin: (isAdmin: boolean) => void
   setAdminLoading: (loading: boolean) => void
   setAdminInitialized: (initialized: boolean) => void
+  setPasswordResetInProgress: (inProgress: boolean, email?: string) => void
+  clearPasswordResetState: () => void
 
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<{ data: any; error: any }>
@@ -67,6 +71,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAdmin: false,
   adminLoading: true, // 초기 admin 로딩 상태를 true로 설정
   adminInitialized: false,
+  passwordResetInProgress: false,
+  passwordResetEmail: null,
 
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
@@ -76,6 +82,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setIsAdmin: (isAdmin) => set({ isAdmin }),
   setAdminLoading: (loading) => set({ adminLoading: loading }),
   setAdminInitialized: (initialized) => set({ adminInitialized: initialized }),
+  setPasswordResetInProgress: (inProgress, email) => set({
+    passwordResetInProgress: inProgress,
+    passwordResetEmail: email || null
+  }),
+  clearPasswordResetState: () => set({
+    passwordResetInProgress: false,
+    passwordResetEmail: null
+  }),
 
   signInWithEmail: async (email: string, password: string) => {
     const supabase = createClient()
@@ -249,6 +263,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // onAuthStateChange 구독 추가 - 실시간 상태 변경 감지
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
+          console.log('Auth state change:', event, session?.user?.email)
+
           if (session) {
             set({ user: session.user, session })
             const { isAdmin } = await checkUserRole(session.user.id)
@@ -261,14 +277,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       )
 
       // 초기 세션이 없는 경우에도 로딩 상태 해제
-      if (!session) {
-        set({ loading: false, initialized: true })
-      }
+      set({ loading: false, initialized: true })
 
       // Cleanup subscription on unmount
       return () => subscription.unsubscribe()
     } catch (error) {
       console.error('Auth initialization error:', error)
+      // 에러 발생 시에도 로딩 상태 해제
       set({ loading: false, initialized: true, adminLoading: false, adminInitialized: true })
     }
   },

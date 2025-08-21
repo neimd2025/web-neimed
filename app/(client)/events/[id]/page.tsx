@@ -52,33 +52,33 @@ export default function EventDetailPage() {
   const [joining, setJoining] = useState(false)
   const [isParticipant, setIsParticipant] = useState(false)
 
-  useEffect(() => {
-    const fetchEventData = async () => {
-      if (!params.id) return
+  const fetchEventData = useCallback(async () => {
+    if (!params.id) return
 
-      try {
-        setLoading(true)
+    try {
+      setLoading(true)
 
-                const eventData = await eventAPI.getEvent(params.id as string)
-        setEvent(eventData)
+      const eventData = await eventAPI.getEvent(params.id as string)
+      setEvent(eventData)
 
-        // 참가자 목록 로드
-        await loadParticipants(params.id as string)
+      // 참가자 목록 로드
+      await loadParticipants(params.id as string)
 
-        // 현재 사용자가 참가자인지 확인
-        if (user) {
-          await checkParticipantStatus(params.id as string)
-        }
-      } catch (error) {
-        logError('이벤트 로드 오류:', error)
-        toast.error('이벤트를 불러오는데 실패했습니다.')
-      } finally {
-        setLoading(false)
+      // 현재 사용자가 참가자인지 확인
+      if (user) {
+        await checkParticipantStatus(params.id as string)
       }
+    } catch (error) {
+      logError('이벤트 로드 오류:', error)
+      toast.error('이벤트를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
+  }, [params.id, user, loadParticipants, checkParticipantStatus])
 
+  useEffect(() => {
     fetchEventData()
-  }, [params.id, user])
+  }, [fetchEventData])
 
   const loadParticipants = useCallback(async (eventId: string) => {
     try {

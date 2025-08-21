@@ -11,12 +11,12 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // 인증이 필요한 페이지들
-  const protectedRoutes = ['/home', '/my-page', '/profile', '/events', '/saved-cards', '/scan-card']
+  // 인증이 필요한 페이지들 (새로운 폴더 구조 반영)
+  const protectedRoutes = ['/home', '/my-page', '/profile', '/events', '/saved-cards', '/scan-card', '/my-namecard', '/my-qr', '/notifications', '/business-card', '/onboarding']
   const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
   // 인증 페이지들
-  const authRoutes = ['/login', '/signup', '/verify']
+  const authRoutes = ['/login', '/signup', '/verify', '/forgot-password', '/reset-password']
   const isAuthRoute = authRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
   // Admin 관련 경로들
@@ -77,6 +77,14 @@ export async function middleware(req: NextRequest) {
   if (isProtectedRoute && !session) {
     // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
     return NextResponse.redirect(new URL('/login', req.url))
+  }
+
+  // 비밀번호 재설정 상태 체크 (클라이언트 사이드에서 처리하도록 헤더 추가)
+  if (isProtectedRoute && session) {
+    // 비밀번호 재설정 중인지 확인하는 헤더 추가
+    const response = NextResponse.next()
+    response.headers.set('x-password-reset-check', 'true')
+    return response
   }
 
   if (isAuthRoute && session) {

@@ -8,7 +8,7 @@ import { businessCardAPI, calculateEventStatus, collectedCardAPI, filterEventsBy
 import { createClient } from '@/utils/supabase/client'
 import { Calendar, Camera, Star } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth()
@@ -21,7 +21,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'진행중' | '예정' | '종료'>('진행중')
 
   // 데이터 로딩 함수들
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user?.id) return
     try {
       const profileData = await userProfileAPI.getUserProfile(user.id)
@@ -29,10 +29,10 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error loading profile:', error)
     }
-  }
+  }, [user?.id])
 
-      // 사용자가 참가한 이벤트 데이터 로드
-  const loadEvents = async () => {
+  // 사용자가 참가한 이벤트 데이터 로드
+  const loadEvents = useCallback(async () => {
     if (!user?.id) return
 
     try {
@@ -71,9 +71,9 @@ export default function HomePage() {
     } catch (error) {
       console.error('참가 이벤트 로드 오류:', error)
     }
-  }
+  }, [user?.id])
 
-  const loadUserCard = async () => {
+  const loadUserCard = useCallback(async () => {
     if (!user?.id) return
     try {
       const cardData = await businessCardAPI.getUserBusinessCard(user.id)
@@ -81,9 +81,9 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error loading user card:', error)
     }
-  }
+  }, [user?.id])
 
-  const loadCollectedCards = async () => {
+  const loadCollectedCards = useCallback(async () => {
     if (!user?.id) return
     try {
       const cardsData = await collectedCardAPI.getUserCollectedCards(user.id)
@@ -91,7 +91,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error loading collected cards:', error)
     }
-  }
+  }, [user?.id])
 
   // 유틸리티 함수들
   const getDisplayName = () => {
@@ -127,7 +127,7 @@ export default function HomePage() {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
+    useEffect(() => {
     if (user?.id) {
       const loadAllData = async () => {
         setLoading(true)
@@ -141,31 +141,9 @@ export default function HomePage() {
       }
       loadAllData()
     }
-  }, [user?.id])
+  }, [user?.id, loadProfile, loadEvents, loadUserCard, loadCollectedCards])
 
-  // 인증 로딩 중이거나 마운트되지 않은 경우
-  if (!mounted || authLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    )
-  }
 
-  // 사용자가 없는 경우 (로딩이 완료된 후에만 체크)
-  if (!authLoading && !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h2>
-          <p className="text-gray-600 mb-4">홈페이지를 보려면 로그인해주세요.</p>
-          <Link href="/login">
-            <Button>로그인하기</Button>
-          </Link>
-        </div>
-      </div>
-    )
-  }
 
   // 데이터 로딩 중
   if (loading) {
@@ -175,6 +153,8 @@ export default function HomePage() {
       </div>
     )
   }
+
+
 
   return (
     <div className="min-h-screen">

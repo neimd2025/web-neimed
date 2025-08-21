@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm outdated)",
+      "Bash(npm audit:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm i:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)"
     ],
     "deny": []
   }

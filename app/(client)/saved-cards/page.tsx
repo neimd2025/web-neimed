@@ -8,7 +8,7 @@ import { collectedCardAPI } from '@/lib/supabase/database'
 import { Edit, Search, Star, User } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export default function SavedCardsPage() {
   const { user } = useAuth()
@@ -21,22 +21,22 @@ export default function SavedCardsPage() {
   // 즐겨찾기된 명함 필터링
   const favoriteCards = collectedCards.filter(card => card.is_favorite)
 
-  useEffect(() => {
-    const loadCollectedCards = async () => {
-      if (!user?.id) return
-      try {
-        setLoading(true)
-        const cardsData = await collectedCardAPI.getUserCollectedCards(user.id)
-        setCollectedCards(cardsData)
-      } catch (error) {
-        console.error('Error loading collected cards:', error)
-      } finally {
-        setLoading(false)
-      }
+  const loadCollectedCards = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      setLoading(true)
+      const cardsData = await collectedCardAPI.getUserCollectedCards(user.id)
+      setCollectedCards(cardsData)
+    } catch (error) {
+      console.error('Error loading collected cards:', error)
+    } finally {
+      setLoading(false)
     }
-
-    loadCollectedCards()
   }, [user?.id])
+
+  useEffect(() => {
+    loadCollectedCards()
+  }, [loadCollectedCards])
 
   const handleToggleFavorite = async (collectionId: string, isFavorite: boolean) => {
     try {
@@ -73,7 +73,10 @@ export default function SavedCardsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">명함을 불러오는 중...</p>
+        </div>
       </div>
     )
   }

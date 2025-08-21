@@ -172,7 +172,7 @@ export default function EventJoinPage() {
   // 페이지 로드 시 사용자 참가 이벤트 가져오기
   useEffect(() => {
     fetchUserEvents()
-  }, [user])
+  }, [fetchUserEvents])
 
   // 이벤트 참가 성공 후 최근 이벤트 목록 새로고침
   const refreshUserEvents = () => {

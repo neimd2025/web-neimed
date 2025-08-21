@@ -8,7 +8,7 @@ import { createClient } from '@/utils/supabase/client'
 import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export default function EventHistoryPage() {
   const [events, setEvents] = useState<any[]>([])
@@ -21,52 +21,52 @@ export default function EventHistoryPage() {
   const upcomingEvents = filterEventsByStatus(events, 'upcoming')
   const completedEvents = filterEventsByStatus(events, 'completed')
 
-  useEffect(() => {
-    const loadEvents = async () => {
-      try {
-        setLoading(true)
+  const loadEvents = useCallback(async () => {
+    try {
+      setLoading(true)
 
-        // 사용자가 참가한 이벤트만 가져오기
-        const { data, error } = await createClient()
-          .from('event_participants')
-          .select(`
-            events (
-              id,
-              title,
-              description,
-              start_date,
-              end_date,
-              location,
-              max_participants,
-              current_participants,
-              event_code,
-              image_url,
-              organizer_name,
-              organizer_email,
-              organizer_phone,
-              organizer_kakao,
-              created_at
-            )
-          `)
-          .order('joined_at', { ascending: false })
+      // 사용자가 참가한 이벤트만 가져오기
+      const { data, error } = await createClient()
+        .from('event_participants')
+        .select(`
+          events (
+            id,
+            title,
+            description,
+            start_date,
+            end_date,
+            location,
+            max_participants,
+            current_participants,
+            event_code,
+            image_url,
+            organizer_name,
+            organizer_email,
+            organizer_phone,
+            organizer_kakao,
+            created_at
+          )
+        `)
+        .order('joined_at', { ascending: false })
 
-        if (error) {
-          console.error('참가 이벤트 로드 오류:', error)
-          return
-        }
-
-        // events 데이터 추출
-        const userEvents = data?.map((item: any) => item.events).filter(Boolean) || []
-        setEvents(userEvents)
-      } catch (error) {
-        console.error('Error loading events:', error)
-      } finally {
-        setLoading(false)
+      if (error) {
+        console.error('참가 이벤트 로드 오류:', error)
+        return
       }
-    }
 
-    loadEvents()
+      // events 데이터 추출
+      const userEvents = data?.map((item: any) => item.events).filter(Boolean) || []
+      setEvents(userEvents)
+    } catch (error) {
+      console.error('Error loading events:', error)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
 
   const getEventsByTab = () => {
     switch (activeTab) {
@@ -101,7 +101,10 @@ export default function EventHistoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">이벤트 기록을 불러오는 중...</p>
+        </div>
       </div>
     )
   }

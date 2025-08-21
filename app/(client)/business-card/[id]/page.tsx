@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { motion } from "framer-motion"
 import { ArrowLeft, Plus, Share2 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 export default function PublicBusinessCardPage() {
@@ -25,90 +25,90 @@ export default function PublicBusinessCardPage() {
   const supabase = createClient()
 
   // 명함 데이터 가져오기
-  useEffect(() => {
-    const fetchBusinessCard = async () => {
-      if (!cardId) return
+  const fetchBusinessCard = useCallback(async () => {
+    if (!cardId) return
 
-      try {
-        setLoading(true)
-        // 먼저 business_cards만 조회
-        const { data: cardData, error: cardError } = await supabase
-          .from('business_cards')
-          .select('*')
-          .eq('id', cardId)
+    try {
+      setLoading(true)
+      // 먼저 business_cards만 조회
+      const { data: cardData, error: cardError } = await supabase
+        .from('business_cards')
+        .select('*')
+        .eq('id', cardId)
+        .single()
+
+      if (cardError) {
+        console.error('명함 가져오기 오류:', cardError)
+        toast.error('명함을 불러오는데 실패했습니다.')
+        return
+      }
+
+      // user_profiles 데이터가 있으면 별도로 조회
+      let profileData = null
+      if (cardData.user_id) {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('full_name, contact, company, role, mbti, keywords, introduction, profile_image_url')
+          .eq('id', cardData.user_id)
           .single()
 
-        if (cardError) {
-          console.error('명함 가져오기 오류:', cardError)
-          toast.error('명함을 불러오는데 실패했습니다.')
-          return
+        if (!profileError) {
+          profileData = profile
         }
-
-        // user_profiles 데이터가 있으면 별도로 조회
-        let profileData = null
-        if (cardData.user_id) {
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('full_name, contact, company, role, mbti, keywords, introduction, profile_image_url')
-            .eq('id', cardData.user_id)
-            .single()
-
-          if (!profileError) {
-            profileData = profile
-          }
-        }
-
-        // 데이터 합치기
-        const combinedData = {
-          ...cardData,
-          user_profiles: profileData
-        }
-
-        setCard(combinedData)
-
-        // 명함 소유자 확인
-        if (user && cardData.user_id === user.id) {
-          setIsOwnCard(true)
-        } else {
-          setIsOwnCard(false)
-        }
-      } catch (error) {
-        console.error('명함 가져오기 오류:', error)
-        toast.error('명함을 불러오는데 실패했습니다.')
-      } finally {
-        setLoading(false)
       }
-    }
 
+      // 데이터 합치기
+      const combinedData = {
+        ...cardData,
+        user_profiles: profileData
+      }
+
+      setCard(combinedData)
+
+      // 명함 소유자 확인
+      if (user && cardData.user_id === user.id) {
+        setIsOwnCard(true)
+      } else {
+        setIsOwnCard(false)
+      }
+    } catch (error) {
+      console.error('명함 가져오기 오류:', error)
+      toast.error('명함을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [cardId, user])
+
+  useEffect(() => {
     fetchBusinessCard()
-  }, [cardId, supabase])
+  }, [fetchBusinessCard])
 
   // 이미 수집된 명함인지 확인
-  useEffect(() => {
-    const checkIfCollected = async () => {
-      if (!user || !cardId) return
+  const checkIfCollected = useCallback(async () => {
+    if (!user || !cardId) return
 
-      try {
-        const { data, error } = await supabase
-          .from('collected_cards')
-          .select('*')
-          .eq('collector_id', user.id)
-          .eq('card_id', cardId)
-          .maybeSingle() // single() 대신 maybeSingle() 사용
+    try {
+      const { data, error } = await supabase
+        .from('collected_cards')
+        .select('*')
+        .eq('collector_id', user.id)
+        .eq('card_id', cardId)
+        .maybeSingle() // single() 대신 maybeSingle() 사용
 
-        if (!error && data) {
-          setIsCollected(true)
-        } else {
-          setIsCollected(false)
-        }
-      } catch (error) {
-        console.log('수집 상태 확인 중 오류 (정상적인 경우):', error)
+      if (!error && data) {
+        setIsCollected(true)
+      } else {
         setIsCollected(false)
       }
+    } catch (error) {
+      console.log('수집 상태 확인 중 오류 (정상적인 경우):', error)
+      setIsCollected(false)
     }
+  }, [user, cardId])
 
+  useEffect(() => {
     checkIfCollected()
-  }, [user, cardId, supabase])
+  }, [checkIfCollected])
 
   // 명함 수집 함수
   const handleCollectCard = async () => {
@@ -180,7 +180,10 @@ export default function PublicBusinessCardPage() {
           </div>
         </div>
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">명함을 불러오는 중입니다...</p>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">명함을 불러오는 중입니다...</p>
+          </div>
         </div>
       </div>
     )

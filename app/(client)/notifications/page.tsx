@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { createClient } from "@/utils/supabase/client"
 import { Calendar, Megaphone, Plus } from "lucide-react"
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 interface Notification {
@@ -28,6 +28,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const supabase = createClient()
+  const channelRef = useRef<any>(null)
 
   // 알림 새로고침 함수
   const refreshNotifications = async () => {
@@ -56,47 +57,39 @@ export default function NotificationsPage() {
   }
 
   // 알림 데이터 가져오기
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!user) return
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return
 
-      try {
-        setLoading(true)
-        console.log('알림 가져오기 시작, 사용자 ID:', user.id)
+    try {
+      setLoading(true)
+      console.log('알림 가져오기 시작, 사용자 ID:', user.id)
 
-        // 먼저 모든 알림을 가져와서 확인
-        const { data: allNotifications, error: allError } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false })
+      // 사용자에게 전송된 알림들을 가져옴
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .or(`user_id.eq.${user.id},target_type.eq.all`)
+        .order('created_at', { ascending: false })
 
-        console.log('모든 알림 데이터:', allNotifications)
-
-        // 사용자에게 전송된 알림들을 가져옴
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .or(`user_id.eq.${user.id},target_type.eq.all`)
-          .order('created_at', { ascending: false })
-
-        if (error) {
-          console.error('알림 가져오기 오류:', error)
-          toast.error('알림을 불러오는데 실패했습니다.')
-          return
-        }
-
-        console.log('필터링된 알림 데이터:', data)
-        setNotifications(data || [])
-      } catch (error) {
+      if (error) {
         console.error('알림 가져오기 오류:', error)
         toast.error('알림을 불러오는데 실패했습니다.')
-      } finally {
-        setLoading(false)
+        return
       }
-    }
 
+      console.log('필터링된 알림 데이터:', data)
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('알림 가져오기 오류:', error)
+      toast.error('알림을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => {
     fetchNotifications()
-  }, [user, supabase])
+  }, [fetchNotifications])
 
   // 페이지 포커스 시 알림 새로고침
   useEffect(() => {
@@ -114,9 +107,15 @@ export default function NotificationsPage() {
     if (!user) return
 
     console.log('실시간 알림 구독 시작, 사용자 ID:', user.id)
-    setIsConnected(true)
 
-        // 개선된 실시간 구독
+    // 기존 채널이 있다면 정리
+    if (channelRef.current) {
+      console.log('기존 채널 정리')
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    // 새로운 채널 생성
     const channel = supabase.channel(`notifications:${user.id}`)
       .on(
         'postgres_changes',
@@ -142,12 +141,17 @@ export default function NotificationsPage() {
         setIsConnected(status === 'SUBSCRIBED')
       })
 
+    channelRef.current = channel
+
     return () => {
       console.log('실시간 알림 구독 해제')
-      supabase.removeChannel(channel)
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
       setIsConnected(false)
     }
-  }, [user, supabase])
+  }, [user])
 
   // 알림 읽음 처리 함수
   const markAsRead = async (notificationId: string) => {
@@ -233,34 +237,20 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-white pb-24">
       <MobileHeader title="최근 활동 및 알림" showMenuButton />
 
-      {/* 디버깅 정보 (개발용) */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div className="px-4 py-2 bg-yellow-50 border-b border-yellow-200">
-          <p className="text-xs text-yellow-800">
-            디버그: 연결 상태: {isConnected ? '연결됨' : '연결 안됨'} |
-            알림 수: {notifications.length} |
-            사용자 ID: {user?.id}
-          </p>
-        </div>
-      )} */}
-
       <div className="px-4 py-6 space-y-4">
-        {/* 새로고침 버튼 */}
-        {/* <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">알림</h2>
-          <button
-            onClick={refreshNotifications}
-            disabled={loading}
-            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50"
-          >
-            {loading ? '새로고침 중...' : '새로고침'}
-          </button>
-        </div> */}
-
         {loading ? (
-          <p className="text-center py-8">알림을 불러오는 중입니다...</p>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            <span className="ml-2 text-gray-600">알림을 불러오는 중입니다...</span>
+          </div>
         ) : notifications.length === 0 ? (
-          <p className="text-center py-8">아직 받은 알림이 없습니다.</p>
+          <div className="text-center py-8">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <Megaphone className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-500">아직 받은 알림이 없습니다.</p>
+            <p className="text-sm text-gray-400 mt-1">새로운 알림이 오면 여기에 표시됩니다.</p>
+          </div>
         ) : (
           notifications.map((notification) => {
             const { icon, color, bg } = getNotificationIcon(notification.type)
