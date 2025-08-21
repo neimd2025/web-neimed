@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useUserProfile } from '@/hooks/use-user-profile'
-import { ArrowLeft, Calendar, LogOut, MapPin, Settings, User } from 'lucide-react'
+import { Calendar, LogOut, MapPin, Settings, Shield, User, UserCheck } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 export default function MyPage() {
-  const { user, signOut, adminUser } = useAuth()
+  const { user, signOut, adminUser, isAdmin } = useAuth()
   const { profile, loading } = useUserProfile()
   const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     if (!user) {
@@ -25,6 +26,17 @@ export default function MyPage() {
     await signOut()
     router.push("/login")
   }
+
+  const handleSwitchToAdmin = () => {
+    router.push("/admin")
+  }
+
+  const handleSwitchToUser = () => {
+    router.push("/home")
+  }
+
+  // 현재 관리자 페이지에 있는지 확인
+  const isInAdminPage = pathname?.startsWith('/admin')
 
   if (!user) {
     return (
@@ -45,11 +57,6 @@ export default function MyPage() {
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <Link href="/home">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
           <h1 className="text-lg font-semibold text-gray-900">마이페이지</h1>
         </div>
         </div>
@@ -240,14 +247,41 @@ export default function MyPage() {
             </Card>
                 </Link>
 
-          <Button
+          {/* 관리자 페이지 전환 버튼 (관리자만 보이기) */}
+          {adminUser && (
+            <div
+              onClick={isInAdminPage ? handleSwitchToUser : handleSwitchToAdmin}
+              className="w-full justify-start cursor-pointer hover:bg-purple-50 p-4 rounded-lg
+              flex items-center border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50"
+            >
+              {isInAdminPage ? (
+                <>
+                  <UserCheck className="w-5 h-5 mr-3 text-purple-600" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-purple-700">일반 사용자 페이지로</span>
+                    <span className="text-xs text-purple-500">홈 화면으로 이동하여 일반 사용자 모드로 전환</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Shield className="w-5 h-5 mr-3 text-purple-600" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-purple-700">관리자 페이지로</span>
+                    <span className="text-xs text-purple-500">관리자 대시보드로 이동하여 관리자 기능 사용</span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div
             onClick={handleLogout}
-            variant="outline"
-            className="w-full justify-start"
+            className="w-full justify-start cursor-pointer hover:bg-gray-100 p-4 rounded-lg
+            flex items-center border border-gray-200"
           >
             <LogOut className="w-5 h-5 mr-3 text-gray-500" />
-            로그아웃
-          </Button>
+            <span className="font-medium">로그아웃</span>
+          </div>
         </div>
       </div>
     </div>

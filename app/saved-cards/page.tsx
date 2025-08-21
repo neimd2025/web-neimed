@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
 import { collectedCardAPI } from '@/lib/supabase/database'
-import { ArrowLeft, Edit, Search, Star, User } from 'lucide-react'
+import { Edit, Search, Star, User } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -97,11 +97,6 @@ export default function SavedCardsPage() {
       {/* 헤더 */}
       <div className="bg-white border-b border-gray-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <Link href="/home">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
           <h1 className="text-lg font-semibold text-gray-900">수집된 명함</h1>
         </div>
       </div>

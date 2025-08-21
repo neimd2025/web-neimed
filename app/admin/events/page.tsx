@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useUserProfile } from "@/hooks/use-user-profile"
 import { calculateEventStatus } from "@/lib/supabase/database"
 import { logError } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth-store"
@@ -49,6 +50,7 @@ interface Participant {
 export default function AdminEventsPage() {
   const router = useRouter()
   const { adminUser } = useAuthStore()
+  const { profile } = useUserProfile()
   const [filter, setFilter] = useState<"all" | "upcoming" | "ongoing" | "completed">("ongoing")
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -306,9 +308,13 @@ export default function AdminEventsPage() {
                 새 이벤트 만들기
               </Button>
             </Link>
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-md">
-              <span className="text-white text-xs font-medium">D</span>
-            </div>
+            <Link href="/admin/my-page">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-shadow">
+                <span className="text-white text-xs font-medium">
+                  {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'A'}
+                </span>
+              </div>
+            </Link>
           </div>
         </div>
       </div>

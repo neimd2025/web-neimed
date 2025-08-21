@@ -49,6 +49,10 @@ interface AuthState {
   signInWithOAuth: (provider: 'google' | 'kakao') => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
 
+  // Role switching
+  switchToUserMode: () => void
+  switchToAdminMode: () => void
+
   // Initialize auth
   initializeAuth: () => Promise<(() => void) | undefined>
 }
@@ -265,6 +269,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       console.error('Auth initialization error:', error)
       set({ loading: false, initialized: true, adminLoading: false, adminInitialized: true })
+    }
+  },
+
+  // 일반 사용자 모드로 전환
+  switchToUserMode: () => {
+    const state = get()
+    // 관리자 정보는 유지하되, 현재 사용자 정보를 일반 사용자로 설정
+    if (state.adminUser) {
+      set({
+        user: state.adminUser,
+        session: state.session,
+        isAdmin: false
+      })
+    }
+  },
+
+  // 관리자 모드로 전환
+  switchToAdminMode: () => {
+    const state = get()
+    // 관리자 권한이 있는 경우에만 전환
+    if (state.adminUser) {
+      set({
+        user: state.adminUser,
+        session: state.session,
+        isAdmin: true
+      })
     }
   },
 }))

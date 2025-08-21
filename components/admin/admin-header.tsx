@@ -33,9 +33,11 @@ export default function AdminHeader() {
               이벤트
             </Button>
           </Link>
-          <Button variant="ghost" size="sm" className="p-2">
-            <User className="h-5 w-5" />
-          </Button>
+          <Link href="/admin/my-page">
+            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
+              <User className="h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </div>
 
