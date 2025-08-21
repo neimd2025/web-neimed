@@ -24,6 +24,60 @@ const checkUserRole = async (userId: string) => {
   }
 }
 
+// OAuth 사용자 프로필 자동 생성 함수
+const ensureUserProfile = async (user: any) => {
+  const supabase = createClient()
+  try {
+    // 기존 프로필 확인
+    const { data: existingProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (existingProfile) {
+      console.log('✅ 기존 프로필 존재:', existingProfile.id)
+      return
+    }
+
+    // 프로필이 없는 경우 생성 (OAuth 사용자)
+    if (profileError?.code === 'PGRST116') {
+      console.log('📝 OAuth 사용자 프로필 자동 생성 시작:', user.email)
+      
+      const userMetadata = user.user_metadata || {}
+      const appMetadata = user.app_metadata || {}
+      const provider = appMetadata.provider || 'email'
+      
+      // OAuth 사용자만 자동 생성 (이메일 가입은 제외)
+      if (provider !== 'email') {
+        const fullName = userMetadata.full_name || userMetadata.name || userMetadata.display_name || '사용자'
+        const avatarUrl = userMetadata.avatar_url || userMetadata.picture || null
+
+        const { error: createError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            full_name: fullName,
+            nickname: fullName.split(' ')[0] || fullName || '사용자',
+            profile_image_url: avatarUrl,
+            role_id: 1, // 일반 사용자
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+
+        if (createError) {
+          console.error('❌ OAuth 프로필 자동 생성 실패:', createError)
+        } else {
+          console.log('✅ OAuth 프로필 자동 생성 완료:', user.email)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ 프로필 확인/생성 중 오류:', error)
+  }
+}
+
 interface AuthState {
   user: User | null
   session: Session | null
@@ -51,7 +105,7 @@ interface AuthState {
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<{ data: any; error: any }>
   signUpWithEmail: (email: string, password: string, name?: string, isAdmin?: boolean) => Promise<{ data: any; error: any }>
-  signInWithOAuth: (provider: 'google' | 'kakao') => Promise<{ error: any }>
+  signInWithOAuth: (provider: 'google' | 'kakao' | 'naver') => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
 
   // Role switching
@@ -220,12 +274,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { data, error }
   },
 
-  signInWithOAuth: async (provider: 'google' | 'kakao') => {
+  signInWithOAuth: async (provider: 'google' | 'kakao' | 'naver') => {
     const supabase = createClient()
+    
+    // 네이버는 직접적으로 지원되지 않으므로 커스텀 구현 필요
+    if (provider === 'naver') {
+      // 네이버 로그인은 별도 처리 (네이버 개발자 센터에서 앱 등록 필요)
+      console.warn('네이버 로그인은 추가 설정이 필요합니다.')
+      return { error: { message: '네이버 로그인 기능은 준비 중입니다.' } }
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/callback`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       }
     })
     return { error }
@@ -267,6 +329,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
           if (session) {
             set({ user: session.user, session })
+            
+            // OAuth 사용자인 경우 프로필 자동 생성
+            if (event === 'SIGNED_IN') {
+              await ensureUserProfile(session.user)
+            }
+            
             const { isAdmin } = await checkUserRole(session.user.id)
             set({ adminUser: isAdmin ? session.user : null, isAdmin, adminLoading: false, adminInitialized: true })
           } else {
