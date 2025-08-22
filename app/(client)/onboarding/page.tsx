@@ -2,8 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { BarChart3, ChevronLeft, ChevronRight, Smartphone } from "lucide-react"
-import Link from "next/link"
+import { BarChart3, ChevronLeft, ChevronRight, Link as LinkIcon, Smartphone, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
@@ -14,30 +13,36 @@ export default function OnboardingPage() {
   const slides = [
     {
       icon: Smartphone,
-      iconColor: "text-blue-600",
+      iconColor: "text-purple-600",
       title: "명함을 디지털로",
-      subtitle: "종이 명함은 이제 그만!",
-      description: "디지털 명함으로 더 스마트하게 네트워킹하세요. 언제 어디서든 쉽게 공유할 수 있습니다.",
-      type: "onboarding",
+      description: "종이 명함은 이제 그만! 디지털 명함으로 더 스마트하게 네트워크하세요. 언제 어디서든지 쉽게 공유할 수 있습니다.",
+    },
+    {
+      icon: LinkIcon,
+      iconColor: "text-green-600",
+      title: "QR 코드로 간편하게",
+      description: "스캔 한 번으로 연결 QR 코드를 스캔하면 바로 명함을 주고받을 수 있어요. 번거로운 과정은 필요 없습니다.",
+    },
+    {
+      icon: Users,
+      iconColor: "text-orange-600",
+      title: "이벤트에서 만나요",
+      description: "네트워크 확장 이벤트 참여 다양한 이벤트에 참여하고 새로운 사람들과 연결하세요. 더 넓은 네트워크를 만들어보세요.",
     },
     {
       icon: BarChart3,
-      iconColor: "text-orange-600",
+      iconColor: "text-red-600",
       title: "연결을 관리하세요",
-      subtitle: "수집한 명함 정리",
-      description: "만난 사람들의 명함을 체계적으로 관리하고, 언제든지 다시 연락할 수 있어요.",
-      type: "onboarding",
-    },
-    {
-      type: "start",
-      title: "Neimd",
-      subtitle: "모두의 특별함이, 나답게 연결되는 시작",
+      description: "수신인 명함 정리 만난 사람들과 명함을 체계적으로 관리하고, 언제든지 다시 연락할 수 있어요.",
     },
   ]
 
   const nextSlide = () => {
     if (currentSlide < slides.length - 1) {
       setCurrentSlide(currentSlide + 1)
+    } else {
+      // 마지막 슬라이드에서 시작하기 버튼 클릭 시
+      handleStart()
     }
   }
 
@@ -47,165 +52,94 @@ export default function OnboardingPage() {
     }
   }
 
-  const currentSlideData = slides[currentSlide]
+  const handleStart = async () => {
+    try {
+      // 온보딩 완료 API 호출
+      const response = await fetch('/api/user/complete-onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-  // 시작 화면 렌더링
-  if (currentSlideData.type === "start") {
-    return (
-      <div className="min-h-screen bg-white flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 pt-12">
-          <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold">logo</span>
-          </div>
-          <Button variant="ghost" className="text-white hover:bg-white/10" onClick={async () => {
-            try {
-              // 온보딩 완료 API 호출
-              await fetch('/api/user/complete-onboarding', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              })
-              localStorage.setItem('hasSeenOnboarding', 'true')
-            } catch (error) {
-              console.error('온보딩 완료 처리 중 오류:', error)
-            }
-            router.push("/namecard/edit")
-          }}>
-            건너뛰기
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 flex flex-col justify-center items-center px-6 space-y-8">
-          {/* Logo */}
-          <div className="text-center space-y-6">
-            <div className="relative">
-              <div className="w-24 h-24 bg-red-500 rounded-2xl mx-auto mb-4"></div>
-              <div className="w-20 h-20 bg-pink-300 rounded-full absolute top-2 left-1/2 transform -translate-x-1/2 flex items-center justify-center">
-                <span className="text-red-500 font-bold text-lg">logo</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-white">{currentSlideData.title}</h1>
-              <div className="text-white/90 space-y-1">
-                <p className="text-lg">모두의 특별함이,</p>
-                <p className="text-lg">나답게 연결되는 시작</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="w-full max-w-sm space-y-6">
-            <Button
-              className="w-full bg-white text-purple-600 hover:bg-white/90 py-4 text-lg font-semibold rounded-2xl"
-              onClick={async () => {
-                try {
-                  // 온보딩 완료 API 호출
-                  const response = await fetch('/api/user/complete-onboarding', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                  })
-
-                  if (response.ok) {
-                    localStorage.setItem('hasSeenOnboarding', 'true')
-                    router.push('/namecard/edit')
-                  } else {
-                    console.error('온보딩 완료 처리 실패')
-                    // 실패해도 명함 생성으로 이동
-                    router.push('/namecard/edit')
-                  }
-                } catch (error) {
-                  console.error('온보딩 완료 처리 중 오류:', error)
-                  // 에러 발생해도 명함 생성으로 이동
-                  router.push('/namecard/edit')
-                }
-              }}
-            >
-              시작하기
-            </Button>
-            <Link href="/signup">
-              <Button
-                variant="outline"
-                className="w-full border-2 border-white text-white hover:bg-white/10 py-4 text-lg font-semibold rounded-2xl bg-transparent"
-              >
-                회원가입
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between p-6 pb-12">
-          <Button variant="ghost" className="text-white hover:bg-white/10 flex items-center" onClick={prevSlide}>
-            <ChevronLeft className="h-5 w-5 mr-1" />
-            이전
-          </Button>
-          <div className="flex justify-center space-x-2">
-            {slides.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  index === currentSlide ? "bg-white" : "bg-white/40"
-                }`}
-              />
-            ))}
-          </div>
-          <div className="w-16"></div> {/* 균형을 위한 빈 공간 */}
-        </div>
-      </div>
-    )
+      if (response.ok) {
+        localStorage.setItem('hasSeenOnboarding', 'true')
+        router.push('/namecard/edit')
+      } else {
+        console.error('온보딩 완료 처리 실패')
+        // 실패해도 명함 생성으로 이동
+        router.push('/namecard/edit')
+      }
+    } catch (error) {
+      console.error('온보딩 완료 처리 중 오류:', error)
+      // 에러 발생해도 명함 생성으로 이동
+      router.push('/namecard/edit')
+    }
   }
 
-  // 온보딩 슬라이드 렌더링
-  const Icon = currentSlideData.icon!
+  const handleSkip = async () => {
+    try {
+      // 온보딩 완료 API 호출
+      await fetch('/api/user/complete-onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      localStorage.setItem('hasSeenOnboarding', 'true')
+    } catch (error) {
+      console.error('온보딩 완료 처리 중 오류:', error)
+    }
+    router.push("/namecard/edit")
+  }
+
+
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-purple-600 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 pt-12">
-        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
-          <span className="text-white font-bold">logo</span>
+        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+          <span className="text-purple-600 font-bold text-sm">nd</span>
         </div>
-        <Button variant="ghost" className="text-white hover:bg-white/10" onClick={async () => {
-          try {
-            // 온보딩 완료 API 호출
-            await fetch('/api/user/complete-onboarding', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-            localStorage.setItem('hasSeenOnboarding', 'true')
-          } catch (error) {
-            console.error('온보딩 완료 처리 중 오류:', error)
-          }
-          router.push("/namecard/edit")
-        }}>
+        <Button
+          variant="ghost"
+          className="text-gray-300 hover:text-white hover:bg-white/10"
+          onClick={handleSkip}
+        >
           건너뛰기
         </Button>
       </div>
 
       {/* Content */}
       <div className="flex-1 flex flex-col justify-center px-6">
-        <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl mx-4">
-          <CardContent className="p-8 text-center space-y-6">
-            <div className="w-20 h-20 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center">
-              <Icon className={`h-10 w-10 ${currentSlideData.iconColor}`} />
-            </div>
+        <div className="relative overflow-hidden">
+          <div
+            className="flex transition-transform duration-300 ease-in-out"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {slides.map((slide, index) => {
+              const SlideIcon = slide.icon
+              return (
+                <div key={index} className="w-full flex-shrink-0 px-4">
+                  <Card className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                    <CardContent className="p-8 text-center space-y-6">
+                      <div className="w-20 h-20 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center">
+                        <SlideIcon className={`h-10 w-10 ${slide.iconColor}`} />
+                      </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-gray-900">{currentSlideData.title}</h2>
-              <p className="text-lg font-medium text-purple-600">{currentSlideData.subtitle}</p>
-            </div>
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-gray-900">{slide.title}</h2>
+                      </div>
 
-            <p className="text-gray-600 leading-relaxed">{currentSlideData.description}</p>
-          </CardContent>
-        </Card>
+                      <p className="text-gray-600 leading-relaxed text-sm">{slide.description}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
         {/* Page Indicators */}
         <div className="flex justify-center space-x-2 mt-8">
@@ -236,8 +170,17 @@ export default function OnboardingPage() {
           className="bg-white text-purple-600 hover:bg-white/90 px-8 py-3 rounded-xl font-semibold flex items-center"
           onClick={nextSlide}
         >
-          다음
-          <ChevronRight className="h-5 w-5 ml-1" />
+          {currentSlide === slides.length - 1 ? (
+            <>
+              시작하기
+              <ChevronRight className="h-5 w-5 ml-1" />
+            </>
+          ) : (
+            <>
+              다음
+              <ChevronRight className="h-5 w-5 ml-1" />
+            </>
+          )}
         </Button>
       </div>
     </div>
