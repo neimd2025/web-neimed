@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TermsConsentModal } from '@/components/ui/terms-consent-modal'
 import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle, Eye, EyeOff, Lock, Mail, User, XCircle } from 'lucide-react'
@@ -18,7 +19,10 @@ const signupSchema = z.object({
   name: z.string().min(2, '이름은 2자 이상이어야 합니다').max(50, '이름은 50자 이하여야 합니다'),
   email: z.string().email('올바른 이메일 형식을 입력해주세요'),
   password: z.string().min(6, '비밀번호는 최소 6자 이상이어야 합니다'),
-  confirmPassword: z.string()
+  confirmPassword: z.string(),
+  termsConsent: z.boolean().refine(val => val === true, {
+    message: "이용약관 및 개인정보처리방침에 동의해야 합니다."
+  })
 }).refine((data) => data.password === data.confirmPassword, {
   message: "비밀번호가 일치하지 않습니다",
   path: ["confirmPassword"],
@@ -32,15 +36,21 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
+  const [termsConsented, setTermsConsented] = useState(false)
   const router = useRouter()
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting }
   } = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema)
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      termsConsent: false
+    }
   })
 
   const watchedEmail = watch('email')
@@ -102,6 +112,17 @@ export default function SignupPage() {
     const timeoutId = setTimeout(checkEmailAvailability, 500)
     return () => clearTimeout(timeoutId)
   }, [watchedEmail])
+
+  const handleTermsConsent = (consentData: {
+    allConsent: boolean
+    serviceTerms: boolean
+    privacyPolicy: boolean
+    marketingConsent: boolean
+  }) => {
+    const isRequiredConsentsGiven = consentData.serviceTerms && consentData.privacyPolicy
+    setTermsConsented(isRequiredConsentsGiven)
+    setValue('termsConsent', isRequiredConsentsGiven)
+  }
 
   const onSubmit = async (data: SignupFormData) => {
     // 이메일 중복 확인
@@ -267,14 +288,64 @@ export default function SignupPage() {
               )}
             </div>
 
+            {/* 약관 동의 체크박스 */}
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <label className="relative mt-1">
+                  <input
+                    {...register('termsConsent')}
+                    type="checkbox"
+                    checked={termsConsented}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setIsTermsModalOpen(true)
+                      } else {
+                        setTermsConsented(false)
+                        setValue('termsConsent', false)
+                      }
+                    }}
+                    className="sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                    termsConsented 
+                      ? 'bg-purple-600 border-purple-600' 
+                      : 'border-gray-300 bg-white'
+                  }`}>
+                    {termsConsented && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </label>
+                <div className="text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsModalOpen(true)}
+                    className="text-purple-600 hover:text-purple-500 font-medium underline"
+                  >
+                    이용약관 및 개인정보처리방침 동의
+                  </button>
+                  <span className="text-red-500 ml-1">*</span>
+                  <p className="text-gray-500 text-xs mt-1">
+                    필수 약관에 동의해야 합니다
+                  </p>
+                </div>
+              </div>
+              {errors.termsConsent && (
+                <p className="text-red-500 text-sm ml-8">{errors.termsConsent.message}</p>
+              )}
+            </div>
+
             <Button
               type="submit"
               className="w-full bg-purple-600 hover:bg-purple-700"
-              disabled={loading || isSubmitting || emailStatus === 'checking' || emailStatus === 'taken'}
+              disabled={loading || isSubmitting || emailStatus === 'checking' || emailStatus === 'taken' || !termsConsented}
             >
               {loading ? '회원가입 중...' :
                emailStatus === 'taken' ? '이미 가입된 이메일' :
-               emailStatus === 'checking' ? '이메일 확인 중...' : '회원가입'}
+               emailStatus === 'checking' ? '이메일 확인 중...' : 
+               !termsConsented ? '약관 동의 필요' : '회원가입'}
             </Button>
           </form>
 
@@ -297,6 +368,13 @@ export default function SignupPage() {
             )}
           </div>
         </div>
+
+        {/* 약관 동의 모달 */}
+        <TermsConsentModal
+          isOpen={isTermsModalOpen}
+          onClose={() => setIsTermsModalOpen(false)}
+          onConsent={handleTermsConsent}
+        />
       </div>
     </div>
   )
