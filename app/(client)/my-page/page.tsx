@@ -185,11 +185,11 @@ export default function MyPage() {
           {/* 태그 섹션들 */}
           <div className="space-y-6">
             {/* 성격 키워드 */}
-            {getUserKeywords() && getUserKeywords().length > 0 && (
+            {getUserKeywords() && getUserKeywords()!.length > 0 && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">성격</h3>
                 <div className="flex flex-wrap gap-2">
-                  {getUserKeywords().map((keyword: string, index: number) => (
+                  {getUserKeywords()!.map((keyword: string, index: number) => (
                     <Badge key={index} className="bg-purple-600 text-white px-3 py-1">
                       {keyword}
                     </Badge>

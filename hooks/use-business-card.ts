@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 
 interface BusinessCard {
   id: string
-  user_id: string
+  user_id: string | null
   [key: string]: any
 }
 

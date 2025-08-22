@@ -7,6 +7,10 @@ interface AuthState {
   session: Session | null
   loading: boolean
   initialized: boolean
+  adminUser: User | null
+  isAdmin: boolean
+  adminLoading: boolean
+  adminInitialized: boolean
 
   // Actions
   setUser: (user: User | null) => void
@@ -16,12 +20,16 @@ interface AuthState {
 
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<{ data: any; error: any }>
-  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ data: any; error: any }>
+  signUpWithEmail: (email: string, password: string, name?: string, isAdmin?: boolean) => Promise<{ data: any; error: any }>
   signInWithOAuth: (provider: 'google' | 'kakao' | 'naver') => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
 
   // Initialize auth
   initializeAuth: () => Promise<(() => void) | undefined>
+
+  // Password reset methods
+  setPasswordResetInProgress: (inProgress: boolean, email?: string) => void
+  clearPasswordResetState: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -29,6 +37,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   loading: true,
   initialized: false,
+  adminUser: null,
+  isAdmin: false,
+  adminLoading: true,
+  adminInitialized: false,
 
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
@@ -232,5 +244,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error('Auth initialization error:', error)
       set({ loading: false, initialized: true })
     }
+  },
+
+  setPasswordResetInProgress: (inProgress: boolean, email?: string) => {
+    // 이 함수는 현재 구현되지 않았지만, 인터페이스 호환성을 위해 추가
+    console.log('Password reset in progress:', inProgress, email)
+  },
+
+  clearPasswordResetState: () => {
+    // 이 함수는 현재 구현되지 않았지만, 인터페이스 호환성을 위해 추가
+    console.log('Password reset state cleared')
   },
 }))

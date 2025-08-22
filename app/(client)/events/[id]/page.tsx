@@ -52,34 +52,6 @@ export default function EventDetailPage() {
   const [joining, setJoining] = useState(false)
   const [isParticipant, setIsParticipant] = useState(false)
 
-  const fetchEventData = useCallback(async () => {
-    if (!params.id) return
-
-    try {
-      setLoading(true)
-
-      const eventData = await eventAPI.getEvent(params.id as string)
-      setEvent(eventData)
-
-      // 참가자 목록 로드
-      await loadParticipants(params.id as string)
-
-      // 현재 사용자가 참가자인지 확인
-      if (user) {
-        await checkParticipantStatus(params.id as string)
-      }
-    } catch (error) {
-      logError('이벤트 로드 오류:', error)
-      toast.error('이벤트를 불러오는데 실패했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }, [params.id, user, loadParticipants, checkParticipantStatus])
-
-  useEffect(() => {
-    fetchEventData()
-  }, [fetchEventData])
-
   const loadParticipants = useCallback(async (eventId: string) => {
     try {
       const supabase = createClient()
@@ -123,6 +95,34 @@ export default function EventDetailPage() {
       logError('참가자 상태 확인 오류:', error)
     }
   }, [user])
+
+  const fetchEventData = useCallback(async () => {
+    if (!params.id) return
+
+    try {
+      setLoading(true)
+
+      const eventData = await eventAPI.getEvent(params.id as string)
+      setEvent(eventData)
+
+      // 참가자 목록 로드
+      await loadParticipants(params.id as string)
+
+      // 현재 사용자가 참가자인지 확인
+      if (user) {
+        await checkParticipantStatus(params.id as string)
+      }
+    } catch (error) {
+      logError('이벤트 로드 오류:', error)
+      toast.error('이벤트를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [params.id, user, loadParticipants, checkParticipantStatus])
+
+  useEffect(() => {
+    fetchEventData()
+  }, [fetchEventData])
 
   const getStatusBadge = (event: any) => {
     const status = calculateEventStatus(event)

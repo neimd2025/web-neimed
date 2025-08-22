@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useUserProfile } from '@/hooks/use-user-profile'
 import { useBusinessCards } from '@/hooks/use-business-cards'
+import { useAuth } from '@/hooks/use-auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Camera, User } from 'lucide-react'
@@ -39,6 +40,7 @@ type ProfileFormData = z.infer<typeof profileSchema>
 
 export default function EditNamecardPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { profile, updateProfile, createProfile, loading } = useUserProfile()
   const { userCard, createBusinessCard, updateBusinessCard } = useBusinessCards()
 
@@ -116,7 +118,16 @@ export default function EditNamecardPage() {
         personality_keywords: data.personality_keywords.length > 0 ? data.personality_keywords : null,
         interest_keywords: data.interest_keywords.length > 0 ? data.interest_keywords : null,
         introduction: data.introduction || null,
-        external_link: data.external_link || null
+        external_link: data.external_link || null,
+        email: user?.email || '',
+        company: data.affiliation_type === '소속' ? (data.affiliation || null) : null,
+        keywords: data.personality_keywords.length > 0 ? data.personality_keywords : null,
+        profile_image_url: null,
+        nickname: data.full_name,
+        qr_code_url: null,
+        role_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
 
       let updatedProfile
@@ -134,7 +145,7 @@ export default function EditNamecardPage() {
       if (!userCard && updatedProfile) {
         try {
           const businessCardData = {
-            full_name: updatedProfile.full_name,
+            full_name: updatedProfile.full_name || '이름 없음',
             introduction: updatedProfile.introduction || '안녕하세요!',
             company: updatedProfile.affiliation,
             role: updatedProfile.role,
@@ -154,14 +165,14 @@ export default function EditNamecardPage() {
         // 기존 명함이 있으면 업데이트
         try {
           const businessCardUpdates = {
-            full_name: updatedProfile.full_name,
-            introduction: updatedProfile.introduction,
-            company: updatedProfile.affiliation,
-            role: updatedProfile.role,
-            contact: updatedProfile.contact,
-            mbti: updatedProfile.mbti,
-            keywords: updatedProfile.personality_keywords,
-            external_link: updatedProfile.external_link
+            full_name: updatedProfile.full_name || undefined,
+            introduction: updatedProfile.introduction || undefined,
+            company: updatedProfile.affiliation || undefined,
+            role: updatedProfile.role || undefined,
+            contact: updatedProfile.contact || undefined,
+            mbti: updatedProfile.mbti || undefined,
+            keywords: updatedProfile.personality_keywords || undefined,
+            external_link: updatedProfile.external_link || undefined
           }
 
           await updateBusinessCard(userCard.id, businessCardUpdates)

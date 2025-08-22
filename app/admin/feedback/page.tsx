@@ -138,47 +138,48 @@ export default function AdminFeedbackPage() {
             </div>
           ) : (
             feedbacks.map((feedback) => (
-            <Card key={feedback.id} className="border border-gray-200">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
+              <Card key={feedback.id} className="border border-gray-200">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-bold text-gray-900">{feedback.user_profiles?.full_name || "익명"}</h3>
+                        <Badge className="bg-purple-100 text-purple-700 text-xs">{feedback.events?.title || "알 수 없음"}</Badge>
+                      </div>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <div className="flex items-center space-x-1">{renderStars(feedback.rating)}</div>
+                        <span className="text-sm text-gray-500">{feedback.rating}점</span>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-500">{feedback.created_at}</span>
+                  </div>
+
+                  <p className="text-gray-700 leading-relaxed">{feedback.feedback}</p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <div className="flex items-center space-x-2">
-                      <h3 className="font-bold text-gray-900">{feedback.user_profiles?.full_name || "익명"}</h3>
-                      <Badge className="bg-purple-100 text-purple-700 text-xs">{feedback.events?.title || "알 수 없음"}</Badge>
+                      <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">{feedback.user_profiles?.full_name?.charAt(0) || "?"}</span>
+                      </div>
+                      <span className="text-sm text-gray-600">{feedback.user_profiles?.full_name || "익명"}</span>
                     </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div className="flex items-center space-x-1">{renderStars(feedback.rating)}</div>
-                      <span className="text-sm text-gray-500">{feedback.rating}점</span>
-                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        feedback.rating >= 4
+                          ? "border-green-200 text-green-700 bg-green-50"
+                          : feedback.rating >= 3
+                            ? "border-yellow-200 text-yellow-700 bg-yellow-50"
+                            : "border-red-200 text-red-700 bg-red-50"
+                      }`}
+                    >
+                      {feedback.rating >= 4 ? "긍정적" : feedback.rating >= 3 ? "보통" : "부정적"}
+                    </Badge>
                   </div>
-                  <span className="text-sm text-gray-500">{feedback.created_at}</span>
-                </div>
-
-                <p className="text-gray-700 leading-relaxed">{feedback.feedback}</p>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{feedback.user_profiles?.full_name?.charAt(0) || "?"}</span>
-                    </div>
-                    <span className="text-sm text-gray-600">{feedback.user_profiles?.full_name || "익명"}</span>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${
-                      feedback.rating >= 4
-                        ? "border-green-200 text-green-700 bg-green-50"
-                        : feedback.rating >= 3
-                          ? "border-yellow-200 text-yellow-700 bg-yellow-50"
-                          : "border-red-200 text-red-700 bg-red-50"
-                    }`}
-                  >
-                    {feedback.rating >= 4 ? "긍정적" : feedback.rating >= 3 ? "보통" : "부정적"}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </div>
