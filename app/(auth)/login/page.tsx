@@ -36,12 +36,14 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema)
   })
 
-  // 이미 로그인된 경우 홈으로 리다이렉트
+  // 이미 로그인된 경우 리다이렉트
   useEffect(() => {
     if (user && !authLoading) {
-      router.push('/home')
+      const urlParams = new URLSearchParams(window.location.search)
+      const returnTo = urlParams.get('returnTo') || '/home'
+      window.location.href = returnTo
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading])
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true)
@@ -64,7 +66,9 @@ export default function LoginPage() {
       } else if (result?.user) {
         console.log('✅ 로그인 성공:', result.user.email)
         toast.success('로그인되었습니다!')
-        router.push('/home')
+        const urlParams = new URLSearchParams(window.location.search)
+        const returnTo = urlParams.get('returnTo') || '/home'
+        window.location.href = returnTo
       } else {
         console.log('⚠️ 로그인 데이터 없음:', result)
         toast.error('로그인에 실패했습니다.')

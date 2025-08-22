@@ -1,149 +1,39 @@
-import { ROLE_IDS, ROLE_NAMES } from '@/lib/constants'
 import { createClient } from '@/utils/supabase/client'
 import { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
-
-// 권한 확인 함수
-const checkUserRole = async (userId: string) => {
-  const supabase = createClient()
-  try {
-    const { data: profile, error } = await supabase
-      .from('user_profiles')
-      .select('role, role_id')
-      .eq('id', userId)
-      .single()
-
-    if (!error && profile) {
-      const isAdmin = profile.role === ROLE_NAMES.ADMIN || profile.role_id === ROLE_IDS.ADMIN
-      return { profile, isAdmin }
-    } else {
-      return { profile: null, isAdmin: false }
-    }
-  } catch (error) {
-    return { profile: null, isAdmin: false }
-  }
-}
-
-// OAuth 사용자 프로필 자동 생성 함수
-const ensureUserProfile = async (user: any) => {
-  const supabase = createClient()
-  try {
-    // 기존 프로필 확인
-    const { data: existingProfile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (existingProfile) {
-      console.log('✅ 기존 프로필 존재:', existingProfile.id)
-      return
-    }
-
-    // 프로필이 없는 경우 생성 (OAuth 사용자)
-    if (profileError?.code === 'PGRST116') {
-      console.log('📝 OAuth 사용자 프로필 자동 생성 시작:', user.email)
-      
-      const userMetadata = user.user_metadata || {}
-      const appMetadata = user.app_metadata || {}
-      const provider = appMetadata.provider || 'email'
-      
-      // OAuth 사용자만 자동 생성 (이메일 가입은 제외)
-      if (provider !== 'email') {
-        const fullName = userMetadata.full_name || userMetadata.name || userMetadata.display_name || '사용자'
-        const avatarUrl = userMetadata.avatar_url || userMetadata.picture || null
-
-        const { error: createError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: user.id,
-            email: user.email || '',
-            full_name: fullName,
-            nickname: fullName.split(' ')[0] || fullName || '사용자',
-            profile_image_url: avatarUrl,
-            role_id: 1, // 일반 사용자
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-
-        if (createError) {
-          console.error('❌ OAuth 프로필 자동 생성 실패:', createError)
-        } else {
-          console.log('✅ OAuth 프로필 자동 생성 완료:', user.email)
-        }
-      }
-    }
-  } catch (error) {
-    console.error('❌ 프로필 확인/생성 중 오류:', error)
-  }
-}
 
 interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
   initialized: boolean
-  adminUser: User | null
-  isAdmin: boolean
-  adminLoading: boolean
-  adminInitialized: boolean
-  passwordResetInProgress: boolean
-  passwordResetEmail: string | null
 
   // Actions
   setUser: (user: User | null) => void
   setSession: (session: Session | null) => void
   setLoading: (loading: boolean) => void
   setInitialized: (initialized: boolean) => void
-  setAdminUser: (user: User | null) => void
-  setIsAdmin: (isAdmin: boolean) => void
-  setAdminLoading: (loading: boolean) => void
-  setAdminInitialized: (initialized: boolean) => void
-  setPasswordResetInProgress: (inProgress: boolean, email?: string) => void
-  clearPasswordResetState: () => void
 
   // Auth methods
   signInWithEmail: (email: string, password: string) => Promise<{ data: any; error: any }>
-  signUpWithEmail: (email: string, password: string, name?: string, isAdmin?: boolean) => Promise<{ data: any; error: any }>
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ data: any; error: any }>
   signInWithOAuth: (provider: 'google' | 'kakao' | 'naver') => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
-
-  // Role switching
-  switchToUserMode: () => void
-  switchToAdminMode: () => void
 
   // Initialize auth
   initializeAuth: () => Promise<(() => void) | undefined>
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   session: null,
-  loading: true, // 초기 로딩 상태를 true로 설정
+  loading: true,
   initialized: false,
-  adminUser: null,
-  isAdmin: false,
-  adminLoading: true, // 초기 admin 로딩 상태를 true로 설정
-  adminInitialized: false,
-  passwordResetInProgress: false,
-  passwordResetEmail: null,
 
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
   setLoading: (loading) => set({ loading }),
   setInitialized: (initialized) => set({ initialized }),
-  setAdminUser: (user) => set({ adminUser: user }),
-  setIsAdmin: (isAdmin) => set({ isAdmin }),
-  setAdminLoading: (loading) => set({ adminLoading: loading }),
-  setAdminInitialized: (initialized) => set({ adminInitialized: initialized }),
-  setPasswordResetInProgress: (inProgress, email) => set({
-    passwordResetInProgress: inProgress,
-    passwordResetEmail: email || null
-  }),
-  clearPasswordResetState: () => set({
-    passwordResetInProgress: false,
-    passwordResetEmail: null
-  }),
 
   signInWithEmail: async (email: string, password: string) => {
     const supabase = createClient()
@@ -277,17 +167,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithOAuth: async (provider: 'google' | 'kakao' | 'naver') => {
     const supabase = createClient()
     
-    // 네이버는 직접적으로 지원되지 않으므로 커스텀 구현 필요
     if (provider === 'naver') {
-      // 네이버 로그인은 별도 처리 (네이버 개발자 센터에서 앱 등록 필요)
-      console.warn('네이버 로그인은 추가 설정이 필요합니다.')
       return { error: { message: '네이버 로그인 기능은 준비 중입니다.' } }
     }
+    
+    // returnTo 파라미터 가져오기
+    const urlParams = new URLSearchParams(window.location.search)
+    const returnTo = urlParams.get('returnTo') || '/home'
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
       }
     })
     return { error }
@@ -298,7 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { error } = await supabase.auth.signOut()
 
     if (!error) {
-      set({ user: null, session: null, adminUser: null, isAdmin: false })
+      set({ user: null, session: null })
     }
 
     return { error }
@@ -308,77 +199,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const supabase = createClient()
 
     try {
-      set({ loading: true, adminLoading: true })
+      set({ loading: true })
 
       // 현재 세션 가져오기
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
         set({ user: session.user, session })
-        // 관리자 권한 동기화
-        const { isAdmin } = await checkUserRole(session.user.id)
-        set({ adminUser: isAdmin ? session.user : null, isAdmin, adminLoading: false, adminInitialized: true })
       } else {
-        set({ user: null, session: null, adminUser: null, isAdmin: false, adminLoading: false, adminInitialized: true })
+        set({ user: null, session: null })
       }
 
-      // onAuthStateChange 구독 추가 - 실시간 상태 변경 감지
+      // onAuthStateChange 구독 - 실시간 상태 변경 감지
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
+        (event, session) => {
           console.log('Auth state change:', event, session?.user?.email)
 
           if (session) {
             set({ user: session.user, session })
-            
-            // OAuth 사용자인 경우 프로필 자동 생성
-            if (event === 'SIGNED_IN') {
-              await ensureUserProfile(session.user)
-            }
-            
-            const { isAdmin } = await checkUserRole(session.user.id)
-            set({ adminUser: isAdmin ? session.user : null, isAdmin, adminLoading: false, adminInitialized: true })
           } else {
-            set({ user: null, session: null, adminUser: null, isAdmin: false, adminLoading: false, adminInitialized: true })
+            set({ user: null, session: null })
           }
           set({ loading: false, initialized: true })
         }
       )
 
-      // 초기 세션이 없는 경우에도 로딩 상태 해제
       set({ loading: false, initialized: true })
 
-      // Cleanup subscription on unmount
+      // Cleanup subscription
       return () => subscription.unsubscribe()
     } catch (error) {
       console.error('Auth initialization error:', error)
-      // 에러 발생 시에도 로딩 상태 해제
-      set({ loading: false, initialized: true, adminLoading: false, adminInitialized: true })
-    }
-  },
-
-  // 일반 사용자 모드로 전환
-  switchToUserMode: () => {
-    const state = get()
-    // 관리자 정보는 유지하되, 현재 사용자 정보를 일반 사용자로 설정
-    if (state.adminUser) {
-      set({
-        user: state.adminUser,
-        session: state.session,
-        isAdmin: false
-      })
-    }
-  },
-
-  // 관리자 모드로 전환
-  switchToAdminMode: () => {
-    const state = get()
-    // 관리자 권한이 있는 경우에만 전환
-    if (state.adminUser) {
-      set({
-        user: state.adminUser,
-        session: state.session,
-        isAdmin: true
-      })
+      set({ loading: false, initialized: true })
     }
   },
 }))
