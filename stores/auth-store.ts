@@ -1,3 +1,4 @@
+import { getURL } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
@@ -128,7 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${getURL()}auth/callback`,
         data: {
           name: name || '',
           isAdmin: isAdmin || false
@@ -178,19 +179,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signInWithOAuth: async (provider: 'google' | 'kakao' | 'naver') => {
     const supabase = createClient()
-    
+
     if (provider === 'naver') {
       return { error: { message: '네이버 로그인 기능은 준비 중입니다.' } }
     }
-    
+
     // returnTo 파라미터 가져오기
     const urlParams = new URLSearchParams(window.location.search)
     const returnTo = urlParams.get('returnTo') || '/home'
-    
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
+        redirectTo: `${getURL()}auth/callback?returnTo=${encodeURIComponent(returnTo)}`,
       }
     })
     return { error }

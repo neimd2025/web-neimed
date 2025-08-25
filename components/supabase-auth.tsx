@@ -1,5 +1,6 @@
 'use client'
 
+import { getURL } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { User } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
@@ -32,7 +33,7 @@ export default function SupabaseAuth() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${getURL()}auth/callback`
       }
     })
   }
