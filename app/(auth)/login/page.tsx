@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { SocialLoginButton, type SocialProvider } from '@/components/ui/social-login-button'
 import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -86,7 +86,7 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithOAuth(provider)
       if (error) {
-        const providerName = provider === 'google' ? 'Google' : 
+        const providerName = provider === 'google' ? 'Google' :
                           provider === 'kakao' ? 'Kakao' : 'Naver'
         toast.error(`${providerName} 로그인에 실패했습니다: ${error.message}`)
       }
@@ -100,15 +100,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white relative">
       {/* 뒤로가기 버튼 */}
-      <button
+      {/* <button
         onClick={() => router.back()}
         className="absolute top-12 left-6 z-10 p-2 hover:bg-gray-100 rounded-full transition-colors"
       >
         <ArrowLeft className="h-4 w-4 text-gray-700" />
-      </button>
+      </button> */}
 
       {/* 메인 컨테이너 */}
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col">
         {/* 상단 로고 및 환영 메시지 */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 pt-20 pb-8">
           <div className="text-center space-y-6">
