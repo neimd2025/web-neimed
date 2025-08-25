@@ -48,7 +48,7 @@ Redirect URLs:
 ## 📋 **2단계: 파일 구조**
 
 ```
-web-named/
+web-neimd/
 ├── app/
 │   ├── auth/
 │   │   ├── login/

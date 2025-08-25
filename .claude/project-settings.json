@@ -1,8 +1,8 @@
 {
-  "projectName": "web-named",
+  "projectName": "web-neimd",
   "description": "Next.js 기반 명함 관리 웹 애플리케이션",
   "mcpServers": {
-    "supabase-named": {
+    "supabase-neimd": {
       "command": "npx",
       "args": [
         "-y",

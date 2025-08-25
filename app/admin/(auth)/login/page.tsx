@@ -141,7 +141,7 @@ export default function AdminLoginPage() {
                   {...register('email')}
                   type="email"
                   autoComplete="email"
-                  placeholder="admin@named.com"
+                  placeholder="admin@neimd.com"
                   className={`pl-10 ${errors.email ? 'border-red-500' : ''}`}
                 />
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

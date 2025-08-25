@@ -202,7 +202,7 @@ export default function AdminSignupPage() {
                     {...register('email')}
                     type="email"
                     autoComplete="email"
-                    placeholder="admin@named.com"
+                    placeholder="admin@neimd.com"
                     className={`pl-10 pr-10 ${errors.email ? 'border-red-500' : ''} ${
                       emailStatus === 'available' ? 'border-green-500' :
                       emailStatus === 'upgrade' ? 'border-blue-500' :

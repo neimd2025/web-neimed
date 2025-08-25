@@ -17,17 +17,17 @@
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:app.supabase.com)",
       "WebFetch(domain:supabase.com)",
-      "mcp__supabase-named__list_projects",
-      "mcp__supabase-named__get_project",
-      "mcp__supabase-named__execute_sql",
-      "mcp__supabase-named__list_tables",
-      "mcp__supabase-named__search_docs"
+      "mcp__supabase-neimd__list_projects",
+      "mcp__supabase-neimd__get_project",
+      "mcp__supabase-neimd__execute_sql",
+      "mcp__supabase-neimd__list_tables",
+      "mcp__supabase-neimd__search_docs"
     ],
     "deny": []
   },
   "enabledMcpjsonServers": [
     "playwright",
-    "supabase-named",
+    "supabase-neimd",
     "context7"
   ]
 }

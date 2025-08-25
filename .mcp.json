@@ -7,7 +7,7 @@
         "@automatalabs/mcp-server-playwright"
       ]
     },
-     "supabase-named": {
+     "supabase-neimd": {
       "command": "npx",
       "args": [
         "-y",

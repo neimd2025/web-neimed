@@ -136,7 +136,7 @@ export default function MyQRPage() {
               <div>
                 <h4 className="font-semibold text-purple-900 mb-1">QR 코드 사용 팁</h4>
                 <p className="text-sm text-purple-700">
-                  스마트폰 카메라로 QR코드를 스캔하거나, Named 앱의 QR 스캔 기능을 사용해보세요!
+                  스마트폰 카메라로 QR코드를 스캔하거나, Neimd 앱의 QR 스캔 기능을 사용해보세요!
                 </p>
               </div>
             </div>

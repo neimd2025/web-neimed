@@ -180,7 +180,7 @@ export default function SignupPage() {
             회원가입
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Named 계정을 만들어보세요
+            Neimd 계정을 만들어보세요
           </p>
         </div>
 
@@ -307,8 +307,8 @@ export default function SignupPage() {
                     className="sr-only"
                   />
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                    termsConsented 
-                      ? 'bg-purple-600 border-purple-600' 
+                    termsConsented
+                      ? 'bg-purple-600 border-purple-600'
                       : 'border-gray-300 bg-white'
                   }`}>
                     {termsConsented && (
@@ -344,7 +344,7 @@ export default function SignupPage() {
             >
               {loading ? '회원가입 중...' :
                emailStatus === 'taken' ? '이미 가입된 이메일' :
-               emailStatus === 'checking' ? '이메일 확인 중...' : 
+               emailStatus === 'checking' ? '이메일 확인 중...' :
                !termsConsented ? '약관 동의 필요' : '회원가입'}
             </Button>
           </form>

@@ -104,8 +104,8 @@ import { QualityGateManager } from './lib/quality-gates';
 
 const qualityManager = new QualityGateManager();
 const qualityReport = await qualityManager.executeQualityGates(
-  workflow, 
-  context, 
+  workflow,
+  context,
   'enterprise' // 'standard' | 'strict' | 'enterprise'
 );
 ```
@@ -120,7 +120,7 @@ const formatter = new OutputFormatter();
 // Generate multiple formats
 const outputs = formatter.formatMultiple(workflow, [
   'roadmap',   // High-level timeline view
-  'tasks',     // Structured task breakdown  
+  'tasks',     // Structured task breakdown
   'detailed',  // Comprehensive implementation guide
   'json',      // Machine-readable format
   'markdown'   // Full markdown export
@@ -169,7 +169,7 @@ Personas are automatically selected based on:
 - **Auto-Activation**: External library imports, framework questions
 - **Capabilities**: Official docs, code examples, patterns, localization
 
-#### Sequential 🧠  
+#### Sequential 🧠
 - **Purpose**: Complex analysis and systematic reasoning
 - **Auto-Activation**: Complex debugging, system design, --think flags
 - **Capabilities**: Multi-step reasoning, structured analysis, planning
@@ -211,7 +211,7 @@ const frontend_workflow = {
 
 ### Quality Profiles
 - **Standard**: Basic quality assurance (75% score threshold)
-- **Strict**: Enhanced validation (85% score threshold)  
+- **Strict**: Enhanced validation (85% score threshold)
 - **Enterprise**: Comprehensive compliance (90% score threshold)
 
 ### Example Quality Report
@@ -241,7 +241,7 @@ const frontend_workflow = {
 
 ### Systematic Strategy (Default)
 1. **Requirements Analysis** - Deep PRD analysis and acceptance criteria
-2. **Architecture Planning** - System design and component architecture  
+2. **Architecture Planning** - System design and component architecture
 3. **Implementation Phases** - Sequential development with clear deliverables
 4. **Testing & Deployment** - Comprehensive validation and rollout
 
@@ -250,7 +250,7 @@ const frontend_workflow = {
 2. **Sprint Development** - Iterative 2-week cycles with demos
 3. **Release & Retrospective** - Continuous improvement and learning
 
-### MVP Strategy  
+### MVP Strategy
 1. **Core Definition** - Essential features and success metrics
 2. **Rapid Development** - Fast implementation with acceptable debt
 3. **Market Validation** - User feedback and iteration planning
@@ -262,7 +262,7 @@ const frontend_workflow = {
 ```typescript
 class WorkflowGenerator {
   async generateWorkflow(
-    input: string | PRDSection[], 
+    input: string | PRDSection[],
     options: WorkflowGeneratorOptions
   ): Promise<GeneratedWorkflow>
 }
@@ -450,7 +450,7 @@ For more information about the SuperClaude framework, see the main documentation
 
 ```bash
 git clone <repository>
-cd web-named
+cd web-neimd
 npm install
 npm test
 ```
