@@ -4,11 +4,11 @@ import DeleteAccountModal from '@/components/delete-account-modal'
 import { useLoading } from '@/components/loading-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/hooks/use-auth'
 import { useBusinessCards } from '@/hooks/use-business-cards'
 import { useUserProfile } from '@/hooks/use-user-profile'
-import { LogOut, Settings, Shield, Trash2, User, UserCheck } from 'lucide-react'
+import { FileText, LogOut, Settings, Shield, Trash2, User, UserCheck } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -100,20 +100,20 @@ export default function MyPage() {
 
   // 사용자 키워드 가져오기
   const getUserKeywords = () => {
-    return userCard?.keywords || profile?.personality_keywords
+    return userCard?.keywords || profile?.personality_keywords || []
   }
 
-  // 사용자 링크 정보 가져오기
+  // 사용자 링크 가져오기
   const getUserLinks = () => {
-    const externalLink = userCard?.external_link || profile?.external_link
-    if (externalLink) {
-      return [{
-        title: "외부 링크",
-        description: "추가 정보를 확인하세요",
-        url: externalLink
-      }]
+    const links = []
+    if (profile?.external_link) {
+      links.push({
+        title: '대표 링크',
+        description: '개인 또는 회사 대표 링크',
+        url: profile.external_link
+      })
     }
-    return []
+    return links
   }
 
   if (isLoading) {
@@ -222,7 +222,7 @@ export default function MyPage() {
         </Card>
 
         {/* 메뉴 */}
-        <div className="space-y-4">
+        <div className="space-y-4 flex flex-col gap-1">
           <Link href="/namecard/edit">
             <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-4">
@@ -264,6 +264,15 @@ export default function MyPage() {
             </div>
           )}
 
+          {/* 약관 보기 버튼 */}
+          <Link href="/terms">
+            <div className="w-full justify-start cursor-pointer hover:bg-gray-50 p-4 rounded-lg
+            flex items-center border border-gray-200">
+              <FileText className="w-5 h-5 mr-3 text-gray-500" />
+              <span className="font-medium">약관 보기</span>
+            </div>
+          </Link>
+
           <div
             onClick={handleLogout}
             className="w-full justify-start cursor-pointer hover:bg-gray-100 p-4 rounded-lg
@@ -285,7 +294,7 @@ export default function MyPage() {
         </div>
       </div>
 
-      {/* 탈퇴 확인 모달 */}
+      {/* 계정 탈퇴 모달 */}
       <DeleteAccountModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
